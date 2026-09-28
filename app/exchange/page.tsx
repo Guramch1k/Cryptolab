@@ -1,2035 +1,999 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 
-type Market = {
+type Coin = {
+  id: string;
   symbol: string;
-  base: string;
-  quote: string;
-  price: number;
-  change: number;
-  volume: string;
+  name: string;
+  image: string;
+  current_price: number;
+  market_cap: number;
+  market_cap_rank: number;
+  total_volume: number;
+  price_change_percentage_1h_in_currency?: number;
+  price_change_percentage_24h: number;
+  price_change_percentage_7d_in_currency?: number;
+  sparkline_in_7d?: {
+    price: number[];
+  };
 };
 
-type Candle = {
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-};
-
-type BookRow = {
-  price: number;
-  amount: number;
-  total: number;
-};
-
-const MARKETS: Market[] = [
-  {
-    symbol: "BTC/USDT",
-    base: "BTC",
-    quote: "USDT",
-    price: 68452.31,
-    change: 2.84,
-    volume: "2.84B",
-  },
-  {
-    symbol: "ETH/USDT",
-    base: "ETH",
-    quote: "USDT",
-    price: 3928.64,
-    change: 1.72,
-    volume: "1.31B",
-  },
-  {
-    symbol: "SOL/USDT",
-    base: "SOL",
-    quote: "USDT",
-    price: 182.47,
-    change: -0.64,
-    volume: "482M",
-  },
-  {
-    symbol: "BNB/USDT",
-    base: "BNB",
-    quote: "USDT",
-    price: 612.84,
-    change: 0.91,
-    volume: "391M",
-  },
-];
-
-const TIMEFRAMES = ["1m", "5m", "15m", "1H", "4H", "1D"];
-
-function seededRandom(seed: number) {
-  const x = Math.sin(seed * 12.9898) * 43758.5453;
-  return x - Math.floor(x);
-}
-
-function generateCandles(price: number, count = 70): Candle[] {
-  const candles: Candle[] = [];
-  let current = price * 0.965;
-
-  for (let i = 0; i < count; i++) {
-    const movement = (seededRandom(i + 17) - 0.48) * price * 0.012;
-    const open = current;
-    const close = Math.max(price * 0.88, open + movement);
-
-    const high =
-      Math.max(open, close) +
-      seededRandom(i + 51) * price * 0.007;
-
-    const low =
-      Math.min(open, close) -
-      seededRandom(i + 91) * price * 0.007;
-
-    candles.push({
-      open,
-      high,
-      low,
-      close,
-    });
-
-    current = close;
+function formatPrice(price: number) {
+  if (price >= 1000) {
+    return `$${price.toLocaleString("en-US", {
+      maximumFractionDigits: 2,
+    })}`;
   }
 
-  const adjustment = price / candles[candles.length - 1].close;
-
-  return candles.map((c) => ({
-    open: c.open * adjustment,
-    high: c.high * adjustment,
-    low: c.low * adjustment,
-    close: c.close * adjustment,
-  }));
-}
-
-function formatPrice(value: number) {
-  if (value >= 1000) {
-    return value.toLocaleString("en-US", {
+  if (price >= 1) {
+    return `$${price.toLocaleString("en-US", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    });
+    })}`;
   }
 
-  return value.toFixed(2);
+  return `$${price.toLocaleString("en-US", {
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 6,
+  })}`;
 }
 
-function generateBook(price: number) {
-  const asks: BookRow[] = [];
-  const bids: BookRow[] = [];
-
-  for (let i = 0; i < 8; i++) {
-    const askPrice = price + price * 0.00065 * (i + 1);
-    const bidPrice = price - price * 0.00065 * (i + 1);
-
-    const askAmount = 0.08 + seededRandom(i + 10) * 0.75;
-    const bidAmount = 0.08 + seededRandom(i + 30) * 0.75;
-
-    asks.push({
-      price: askPrice,
-      amount: askAmount,
-      total: askPrice * askAmount,
-    });
-
-    bids.push({
-      price: bidPrice,
-      amount: bidAmount,
-      total: bidPrice * bidAmount,
-    });
+function formatMoney(value: number) {
+  if (value >= 1_000_000_000_000) {
+    return `$${(value / 1_000_000_000_000).toFixed(2)}T`;
   }
 
-  return {
-    asks: asks.reverse(),
-    bids,
-  };
+  if (value >= 1_000_000_000) {
+    return `$${(value / 1_000_000_000).toFixed(2)}B`;
+  }
+
+  if (value >= 1_000_000) {
+    return `$${(value / 1_000_000).toFixed(2)}M`;
+  }
+
+  return `$${value.toLocaleString("en-US")}`;
 }
 
-function generateTrades(price: number) {
-  return Array.from({ length: 9 }, (_, i) => ({
-    price:
-      price +
-      (seededRandom(i + 100) - 0.5) * price * 0.002,
-    amount: 0.01 + seededRandom(i + 120) * 0.12,
-    side: i % 3 === 0 ? "sell" : "buy",
-    time: `13:${String(48 - i).padStart(2, "0")}:${
-      10 + i
-    }`,
-  }));
+function formatPercent(value?: number) {
+  if (value === undefined || value === null) return "—";
+
+  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
 }
 
-function CandleChart({
-  candles,
-  timeframe,
+function MiniChart({
+  data,
+  positive,
 }: {
-  candles: Candle[];
-  timeframe: string;
+  data?: number[];
+  positive: boolean;
 }) {
-  const width = 900;
-  const height = 430;
-  const padding = 35;
+  if (!data || data.length < 2) {
+    return <div className="chart-empty">—</div>;
+  }
 
-  const visible = candles.slice(-55);
+  const width = 180;
+  const height = 55;
 
-  const highs = visible.map((c) => c.high);
-  const lows = visible.map((c) => c.low);
-
-  const max = Math.max(...highs);
-  const min = Math.min(...lows);
-
+  const min = Math.min(...data);
+  const max = Math.max(...data);
   const range = max - min || 1;
-  const chartWidth = width - padding * 2;
-  const chartHeight = height - padding * 2;
 
-  const candleWidth = chartWidth / visible.length;
+  const points = data
+    .map((value, index) => {
+      const x = (index / (data.length - 1)) * width;
+      const y = height - ((value - min) / range) * height;
 
-  const y = (value: number) =>
-    padding + ((max - value) / range) * chartHeight;
+      return `${x},${y}`;
+    })
+    .join(" ");
 
   return (
-    <div className="chart-wrapper">
-      <div className="chart-top">
-        <div>
-          <span className="chart-label">Price</span>
-          <span className="chart-price">
-            {formatPrice(visible[visible.length - 1].close)}
-          </span>
-        </div>
-
-        <div className="chart-meta">
-          <span>{timeframe}</span>
-          <span>•</span>
-          <span>LIVE</span>
-        </div>
-      </div>
-
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className="chart"
-        preserveAspectRatio="none"
-      >
-        <defs>
-          <linearGradient id="chartFade" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#24d9a4" stopOpacity=".12" />
-            <stop offset="100%" stopColor="#24d9a4" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-
-        {[0, 1, 2, 3, 4].map((line) => {
-          const yy = padding + (chartHeight / 4) * line;
-
-          return (
-            <line
-              key={line}
-              x1={padding}
-              x2={width - padding}
-              y1={yy}
-              y2={yy}
-              stroke="rgba(255,255,255,.055)"
-              strokeWidth="1"
-            />
-          );
-        })}
-
-        {[0, 1, 2, 3, 4, 5].map((line) => {
-          const xx = padding + (chartWidth / 5) * line;
-
-          return (
-            <line
-              key={line}
-              x1={xx}
-              x2={xx}
-              y1={padding}
-              y2={height - padding}
-              stroke="rgba(255,255,255,.035)"
-              strokeWidth="1"
-            />
-          );
-        })}
-
-        {visible.map((candle, index) => {
-          const x =
-            padding +
-            index * candleWidth +
-            candleWidth / 2;
-
-          const openY = y(candle.open);
-          const closeY = y(candle.close);
-          const highY = y(candle.high);
-          const lowY = y(candle.low);
-
-          const bullish = candle.close >= candle.open;
-          const bodyY = Math.min(openY, closeY);
-          const bodyHeight = Math.max(
-            2,
-            Math.abs(closeY - openY)
-          );
-
-          return (
-            <g key={index}>
-              <line
-                x1={x}
-                x2={x}
-                y1={highY}
-                y2={lowY}
-                stroke={bullish ? "#28d9a5" : "#ff526d"}
-                strokeWidth="1"
-              />
-
-              <rect
-                x={x - candleWidth * 0.31}
-                y={bodyY}
-                width={candleWidth * 0.62}
-                height={bodyHeight}
-                rx="1"
-                fill={bullish ? "#28d9a5" : "#ff526d"}
-              />
-            </g>
-          );
-        })}
-
-        <line
-          x1={padding}
-          x2={width - padding}
-          y1={y(visible[visible.length - 1].close)}
-          y2={y(visible[visible.length - 1].close)}
-          stroke="#2bdca7"
-          strokeDasharray="5 5"
-          opacity=".65"
-        />
-      </svg>
-
-      <div className="chart-axis">
-        <span>12:00</span>
-        <span>12:30</span>
-        <span>13:00</span>
-        <span>13:30</span>
-        <span>14:00</span>
-      </div>
-    </div>
+    <svg
+      width="180"
+      height="55"
+      viewBox="0 0 180 55"
+      className={`mini-chart ${positive ? "positive" : "negative"}`}
+    >
+      <polyline
+        points={points}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
-export default function ExchangePage() {
-  const [selectedSymbol, setSelectedSymbol] =
-    useState("BTC/USDT");
+export default function Home() {
+  const [coins, setCoins] = useState<Coin[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const [timeframe, setTimeframe] = useState("15m");
+  async function loadMarkets() {
+    try {
+      setError("");
 
-  const [side, setSide] = useState<"buy" | "sell">("buy");
+      const response = await fetch(
+        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1&sparkline=true&price_change_percentage=1h,24h,7d",
+        {
+          cache: "no-store",
+        }
+      );
 
-  const [orderType, setOrderType] = useState<
-    "Market" | "Limit" | "Stop"
-  >("Limit");
+      if (!response.ok) {
+        throw new Error("Market data request failed");
+      }
 
-  const [amount, setAmount] = useState("");
+      const data = await response.json();
 
-  const [limitPrice, setLimitPrice] =
-    useState("");
-
-  const [mobilePanel, setMobilePanel] =
-    useState<"chart" | "book" | "trade">("chart");
-
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  const market =
-    MARKETS.find(
-      (item) => item.symbol === selectedSymbol
-    ) || MARKETS[0];
-
-  const candles = useMemo(
-    () => generateCandles(market.price),
-    [market.symbol, market.price]
-  );
-
-  const book = useMemo(
-    () => generateBook(market.price),
-    [market.symbol, market.price]
-  );
-
-  const trades = useMemo(
-    () => generateTrades(market.price),
-    [market.symbol, market.price]
-  );
-
-  const orderPrice =
-    orderType === "Market"
-      ? market.price
-      : Number(limitPrice) || market.price;
-
-  const numericAmount = Number(amount) || 0;
-
-  const total = numericAmount * orderPrice;
-
-  const available =
-    side === "buy" ? 12480.52 : 0.1847;
+      setCoins(data);
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error(err);
+      setError("Unable to load market data.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    if (orderType === "Limit") {
-      setLimitPrice(market.price.toFixed(2));
-    }
-  }, [market.price, orderType]);
+    loadMarkets();
 
-  function setPercentage(percent: number) {
-    if (side === "buy") {
-      const value =
-        (available * percent) / orderPrice;
+    const interval = setInterval(() => {
+      loadMarkets();
+    }, 60_000);
 
-      setAmount(value.toFixed(6));
-    } else {
-      setAmount(
-        (available * percent).toFixed(6)
-      );
-    }
-  }
+    return () => clearInterval(interval);
+  }, []);
 
-  function submitOrder() {
-    alert(
-      "Demo order only.\n\nNo real transaction has been executed."
-    );
-  }
+  const totalMarketCap = coins.reduce(
+    (sum, coin) => sum + coin.market_cap,
+    0
+  );
+
+  const totalVolume = coins.reduce(
+    (sum, coin) => sum + coin.total_volume,
+    0
+  );
+
+  const btc = coins.find((coin) => coin.symbol.toLowerCase() === "btc");
 
   return (
-    <>
-      <style>{`
+    <main className="page">
+      <div className="background-glow glow-one" />
+      <div className="background-glow glow-two" />
+
+      <header className="header">
+        <Link href="/" className="logo">
+          <div className="logo-mark">C</div>
+          <span>CryptoLab</span>
+        </Link>
+
+        <nav>
+          <Link href="/" className="active">
+            Markets
+          </Link>
+
+          <Link href="/exchange">
+            Exchange
+          </Link>
+        </nav>
+
+        <Link href="/exchange" className="header-button">
+          Trade
+        </Link>
+      </header>
+
+      <section className="hero">
+        <div>
+          <div className="eyebrow">
+            <span className="live-dot" />
+            LIVE MARKET DATA
+          </div>
+
+          <h1>
+            Crypto markets,
+            <br />
+            <span>in real time.</span>
+          </h1>
+
+          <p>
+            Track the world's leading cryptocurrencies by market
+            capitalization.
+          </p>
+        </div>
+      </section>
+
+      <section className="stats">
+        <div className="stat-card">
+          <div className="stat-label">TOP 10 MARKET CAP</div>
+
+          <div className="stat-value">
+            {loading ? "Loading..." : formatMoney(totalMarketCap)}
+          </div>
+
+          <div className="stat-description">
+            Combined market capitalization
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-label">24H VOLUME</div>
+
+          <div className="stat-value">
+            {loading ? "Loading..." : formatMoney(totalVolume)}
+          </div>
+
+          <div className="stat-description">
+            Trading volume across markets
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-label">BITCOIN</div>
+
+          <div className="stat-value">
+            {btc ? formatPrice(btc.current_price) : "—"}
+          </div>
+
+          <div
+            className={`stat-change ${
+              btc && btc.price_change_percentage_24h >= 0
+                ? "positive"
+                : "negative"
+            }`}
+          >
+            {btc ? formatPercent(btc.price_change_percentage_24h) : "—"}
+            <span> 24h</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="markets-section">
+        <div className="section-header">
+          <div>
+            <h2>Top cryptocurrencies</h2>
+            <p>Ranked by market capitalization</p>
+          </div>
+
+          <div className="updated">
+            <span className="live-dot" />
+
+            {lastUpdated
+              ? `Updated ${lastUpdated.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })}`
+              : "Updating..."}
+          </div>
+        </div>
+
+        <div className="market-table">
+          <div className="table-header">
+            <div>#</div>
+            <div>Asset</div>
+            <div>Price</div>
+            <div>1H</div>
+            <div>24H</div>
+            <div>7D</div>
+            <div>7D Chart</div>
+            <div>Market Cap</div>
+            <div />
+          </div>
+
+          {loading &&
+            Array.from({ length: 10 }).map((_, index) => (
+              <div className="coin-row loading-row" key={index}>
+                <div className="skeleton small" />
+                <div className="asset-loading">
+                  <div className="skeleton avatar" />
+                  <div className="skeleton name" />
+                </div>
+                <div className="skeleton price" />
+                <div className="skeleton percent" />
+                <div className="skeleton percent" />
+                <div className="skeleton percent" />
+                <div className="skeleton chart" />
+                <div className="skeleton marketcap" />
+                <div />
+              </div>
+            ))}
+
+          {!loading &&
+            coins.map((coin) => {
+              const positive =
+                coin.price_change_percentage_24h >= 0;
+
+              return (
+                <div className="coin-row" key={coin.id}>
+                  <div className="rank">
+                    {coin.market_cap_rank}
+                  </div>
+
+                  <div className="asset">
+                    <img
+                      src={coin.image}
+                      alt={coin.name}
+                      className="coin-icon"
+                    />
+
+                    <div>
+                      <div className="coin-name">
+                        {coin.name}
+                      </div>
+
+                      <div className="coin-symbol">
+                        {coin.symbol.toUpperCase()}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="coin-price">
+                    {formatPrice(coin.current_price)}
+                  </div>
+
+                  <div
+                    className={
+                      (coin.price_change_percentage_1h_in_currency ??
+                        0) >= 0
+                        ? "positive"
+                        : "negative"
+                    }
+                  >
+                    {formatPercent(
+                      coin.price_change_percentage_1h_in_currency
+                    )}
+                  </div>
+
+                  <div
+                    className={
+                      coin.price_change_percentage_24h >= 0
+                        ? "positive"
+                        : "negative"
+                    }
+                  >
+                    {formatPercent(
+                      coin.price_change_percentage_24h
+                    )}
+                  </div>
+
+                  <div
+                    className={
+                      (coin.price_change_percentage_7d_in_currency ??
+                        0) >= 0
+                        ? "positive"
+                        : "negative"
+                    }
+                  >
+                    {formatPercent(
+                      coin.price_change_percentage_7d_in_currency
+                    )}
+                  </div>
+
+                  <div className="chart-wrapper">
+                    <MiniChart
+                      data={coin.sparkline_in_7d?.price}
+                      positive={positive}
+                    />
+                  </div>
+
+                  <div className="market-cap">
+                    {formatMoney(coin.market_cap)}
+                  </div>
+
+                  <Link
+                    href="/exchange"
+                    className="trade-button"
+                  >
+                    Trade
+                  </Link>
+                </div>
+              );
+            })}
+
+          {error && (
+            <div className="error-box">
+              <strong>Market data unavailable</strong>
+
+              <span>
+                {error}
+              </span>
+
+              <button onClick={loadMarkets}>
+                Try again
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <footer className="footer">
+        <div className="footer-logo">
+          CryptoLab
+        </div>
+
+        <div>
+          Market data provided by CoinGecko
+        </div>
+
+        <div>
+          Demo exchange interface
+        </div>
+      </footer>
+
+      <style jsx>{`
         * {
           box-sizing: border-box;
         }
 
-        html,
-        body {
-          margin: 0;
-          padding: 0;
-          background: #03070b;
-        }
-
-        body {
-          font-family:
-            Inter,
-            -apple-system,
-            BlinkMacSystemFont,
-            "Segoe UI",
-            Arial,
-            sans-serif;
-          color: #e9f1ef;
-        }
-
-        button,
-        input {
-          font: inherit;
-        }
-
-        button {
-          border: 0;
-        }
-
-        .exchange {
+        .page {
           min-height: 100vh;
           background:
             radial-gradient(
-              circle at 55% -10%,
-              rgba(36, 217, 164, .055),
-              transparent 30%
+              circle at 20% 0%,
+              rgba(38, 84, 255, 0.12),
+              transparent 35%
             ),
-            #03070b;
+            #05080d;
+          color: #f5f7fa;
+          font-family:
+            Inter,
+            ui-sans-serif,
+            system-ui,
+            -apple-system,
+            BlinkMacSystemFont,
+            "Segoe UI",
+            sans-serif;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .background-glow {
+          position: fixed;
+          width: 500px;
+          height: 500px;
+          border-radius: 50%;
+          filter: blur(140px);
+          pointer-events: none;
+          opacity: 0.08;
+        }
+
+        .glow-one {
+          top: -250px;
+          left: -150px;
+          background: #2864ff;
+        }
+
+        .glow-two {
+          right: -250px;
+          bottom: -250px;
+          background: #00d4ff;
         }
 
         .header {
-          height: 68px;
+          height: 76px;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0 22px;
-          border-bottom: 1px solid #172029;
-          background: rgba(4, 9, 13, .94);
-          position: sticky;
-          top: 0;
-          z-index: 20;
-          backdrop-filter: blur(14px);
+          padding: 0 5%;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+          background: rgba(5,8,13,0.75);
+          backdrop-filter: blur(20px);
+          position: relative;
+          z-index: 10;
         }
 
-        .brand {
+        .logo {
           display: flex;
           align-items: center;
           gap: 11px;
-          min-width: 190px;
+          text-decoration: none;
+          color: white;
+          font-size: 20px;
+          font-weight: 750;
+          letter-spacing: -0.5px;
         }
 
-        .brand-logo {
+        .logo-mark {
           width: 34px;
           height: 34px;
           border-radius: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #07100f;
-          font-size: 19px;
-          font-weight: 950;
-          background: linear-gradient(
-            145deg,
-            #38e8b4,
-            #14906e
-          );
-          box-shadow:
-            0 0 22px rgba(43,220,167,.15);
-        }
-
-        .brand-name {
-          font-size: 18px;
-          font-weight: 850;
-          letter-spacing: -.5px;
-        }
-
-        .brand-name span {
-          color: #2bdca7;
-        }
-
-        .nav {
-          display: flex;
-          align-items: center;
-          gap: 25px;
-          color: #697887;
-          font-size: 12px;
-          font-weight: 650;
-        }
-
-        .nav .active {
-          color: #e9f1ef;
-        }
-
-        .header-actions {
-          display: flex;
-          align-items: center;
-          gap: 9px;
-        }
-
-        .header-button {
-          height: 34px;
-          padding: 0 13px;
-          color: #91a0ad;
-          background: #0a1117;
-          border: 1px solid #1a2630;
-          border-radius: 8px;
-          cursor: pointer;
-          font-size: 11px;
-          font-weight: 700;
-        }
-
-        .header-button:hover {
-          border-color: #2bdca7;
-          color: #e9f1ef;
-        }
-
-        .profile {
-          width: 34px;
-          height: 34px;
-          border-radius: 50%;
-          background: #17232d;
-          border: 1px solid #293641;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #8e9eab;
-          font-size: 12px;
-          font-weight: 800;
-        }
-
-        .marketbar {
-          min-height: 92px;
-          display: flex;
-          align-items: center;
-          gap: 28px;
-          padding: 14px 22px;
-          border-bottom: 1px solid #172029;
-          overflow-x: auto;
-        }
-
-        .pair {
-          min-width: 165px;
-        }
-
-        .pair-select {
-          display: flex;
-          align-items: center;
-          gap: 9px;
-          cursor: pointer;
-        }
-
-        .coin-icon {
-          width: 35px;
-          height: 35px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: #111a22;
-          border: 1px solid #26323c;
-          color: #dbe8e4;
-          font-size: 10px;
-          font-weight: 900;
-        }
-
-        .pair-name {
-          font-size: 16px;
-          font-weight: 850;
-        }
-
-        .pair-small {
-          color: #667685;
-          font-size: 10px;
-          margin-top: 2px;
-        }
-
-        .market-stat {
-          min-width: 105px;
-        }
-
-        .market-stat-label {
-          color: #526170;
-          font-size: 9px;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          margin-bottom: 5px;
-        }
-
-        .market-stat-value {
-          font-size: 12px;
-          font-weight: 750;
-        }
-
-        .price-large {
-          font-size: 20px;
-          font-weight: 850;
-          letter-spacing: -.5px;
-        }
-
-        .green {
-          color: #2bdca7;
-        }
-
-        .red {
-          color: #ff526d;
-        }
-
-        .market-switcher {
-          display: flex;
-          gap: 7px;
-          margin-left: auto;
-        }
-
-        .market-chip {
-          flex: 0 0 auto;
-          padding: 8px 10px;
-          border: 1px solid #18242d;
-          border-radius: 8px;
-          background: #081017;
-          color: #687987;
-          cursor: pointer;
-          font-size: 10px;
-          font-weight: 700;
-        }
-
-        .market-chip.active {
-          color: #e8f1ef;
-          border-color: rgba(43,220,167,.35);
-          background: rgba(43,220,167,.07);
-        }
-
-        .main-grid {
           display: grid;
-          grid-template-columns:
-            minmax(0, 1fr)
-            310px
-            330px;
-          min-height: calc(100vh - 160px);
-        }
-
-        .left-column {
-          min-width: 0;
-          border-right: 1px solid #172029;
-        }
-
-        .chart-toolbar {
-          height: 52px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 17px;
-          border-bottom: 1px solid #172029;
-        }
-
-        .toolbar-left {
-          display: flex;
-          align-items: center;
-          gap: 5px;
-        }
-
-        .tool-button {
-          padding: 7px 9px;
-          color: #647583;
-          background: transparent;
-          border-radius: 6px;
-          cursor: pointer;
-          font-size: 10px;
-          font-weight: 700;
-        }
-
-        .tool-button:hover,
-        .tool-button.active {
-          color: #dbe7e3;
-          background: #101820;
-        }
-
-        .toolbar-right {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          color: #536371;
-          font-size: 10px;
-        }
-
-        .chart-area {
-          min-height: 510px;
-          padding: 12px 17px 8px;
-          border-bottom: 1px solid #172029;
-        }
-
-        .chart-wrapper {
-          width: 100%;
-          height: 100%;
-          min-height: 480px;
-          position: relative;
-        }
-
-        .chart-top {
-          height: 35px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-
-        .chart-label {
-          color: #566674;
-          font-size: 9px;
-          margin-right: 8px;
-        }
-
-        .chart-price {
-          color: #dfeae7;
-          font-size: 12px;
+          place-items: center;
+          background: linear-gradient(135deg, #3675ff, #6c42ff);
           font-weight: 800;
+          box-shadow: 0 8px 30px rgba(55,100,255,0.25);
         }
 
-        .chart-meta {
+        nav {
           display: flex;
-          gap: 7px;
-          color: #596a78;
-          font-size: 9px;
+          gap: 34px;
+          margin-left: 80px;
         }
 
-        .chart {
-          width: 100%;
-          height: 405px;
-          display: block;
-        }
-
-        .chart-axis {
-          display: flex;
-          justify-content: space-between;
-          color: #4d5d6a;
-          font-size: 9px;
-          padding: 0 25px;
-        }
-
-        .bottom-panel {
-          min-height: 220px;
-        }
-
-        .panel-header {
-          height: 48px;
-          display: flex;
-          align-items: center;
-          gap: 20px;
-          padding: 0 17px;
-          border-bottom: 1px solid #172029;
-        }
-
-        .panel-tab {
-          height: 48px;
-          position: relative;
-          background: transparent;
-          color: #61717f;
-          cursor: pointer;
-          font-size: 11px;
-          font-weight: 700;
-        }
-
-        .panel-tab.active {
-          color: #e6efec;
-        }
-
-        .panel-tab.active::after {
-          content: "";
-          position: absolute;
-          left: 0;
-          right: 0;
-          bottom: -1px;
-          height: 2px;
-          background: #2bdca7;
-        }
-
-        .positions-empty {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 160px;
-          color: #465560;
-          font-size: 11px;
-        }
-
-        .side-column {
-          min-width: 0;
-          border-right: 1px solid #172029;
-        }
-
-        .side-title {
-          height: 52px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 15px;
-          border-bottom: 1px solid #172029;
-          font-size: 12px;
-          font-weight: 800;
-        }
-
-        .side-title span {
-          color: #50616f;
-          font-size: 9px;
+        nav a {
+          color: #7d8796;
+          text-decoration: none;
+          font-size: 14px;
           font-weight: 600;
         }
 
-        .book-head,
-        .book-row {
-          display: grid;
-          grid-template-columns: 1fr .85fr 1fr;
-          gap: 8px;
-          padding: 0 14px;
+        nav a:hover,
+        nav a.active {
+          color: white;
         }
 
-        .book-head {
-          height: 32px;
-          align-items: center;
-          color: #465663;
-          font-size: 9px;
+        .header-button {
+          color: white;
+          text-decoration: none;
+          background: #2864ff;
+          border-radius: 9px;
+          padding: 10px 18px;
+          font-size: 13px;
+          font-weight: 700;
         }
 
-        .book-row {
-          height: 28px;
-          align-items: center;
-          position: relative;
-          font-size: 9px;
-          overflow: hidden;
+        .hero {
+          max-width: 1380px;
+          margin: auto;
+          padding: 82px 5% 55px;
         }
 
-        .book-depth {
-          position: absolute;
-          right: 0;
-          top: 0;
-          bottom: 0;
-          opacity: .07;
-          z-index: 0;
-        }
-
-        .ask-depth {
-          background: #ff526d;
-        }
-
-        .bid-depth {
-          background: #2bdca7;
-        }
-
-        .book-row span {
-          position: relative;
-          z-index: 1;
-        }
-
-        .book-row .amount {
-          color: #9ba8b2;
-          text-align: right;
-        }
-
-        .book-row .total {
-          color: #5e6e7b;
-          text-align: right;
-        }
-
-        .mid-price {
-          height: 45px;
+        .eyebrow {
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          padding: 0 14px;
-          border-top: 1px solid #18232c;
-          border-bottom: 1px solid #18232c;
-          background: #071016;
+          gap: 9px;
+          color: #8994a4;
+          font-size: 11px;
+          letter-spacing: 1.7px;
+          font-weight: 700;
+          margin-bottom: 20px;
         }
 
-        .mid-price-value {
-          color: #2bdca7;
-          font-size: 15px;
-          font-weight: 850;
+        .live-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: #2ee887;
+          box-shadow: 0 0 12px rgba(46,232,135,0.75);
+          display: inline-block;
         }
 
-        .mid-label {
-          color: #51616e;
-          font-size: 9px;
-        }
-
-        .trades-title {
-          margin-top: 18px;
-        }
-
-        .trade-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr 1fr;
-          padding: 0 14px;
-          height: 28px;
-          align-items: center;
-          font-size: 9px;
-        }
-
-        .trade-row .time {
-          color: #526270;
-          text-align: right;
-        }
-
-        .trade-row .amount {
-          color: #8e9ba5;
-          text-align: right;
-        }
-
-        .trade-row .buy {
-          color: #2bdca7;
-        }
-
-        .trade-row .sell {
-          color: #ff526d;
-        }
-
-        .order-column {
-          min-width: 0;
-          background: #050a0f;
-        }
-
-        .order-header {
-          height: 52px;
-          display: flex;
-          align-items: center;
-          padding: 0 18px;
-          border-bottom: 1px solid #172029;
-          font-size: 12px;
+        h1 {
+          font-size: clamp(42px, 6vw, 78px);
+          line-height: 0.98;
+          letter-spacing: -4px;
+          margin: 0;
           font-weight: 800;
         }
 
-        .order-tabs {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          margin: 17px 18px 14px;
-          background: #0b1218;
-          border: 1px solid #17232c;
-          border-radius: 8px;
-          padding: 3px;
+        h1 span {
+          color: #687386;
         }
 
-        .order-side {
-          height: 32px;
-          background: transparent;
-          border-radius: 6px;
-          color: #647582;
-          cursor: pointer;
+        .hero p {
+          color: #788395;
+          font-size: 16px;
+          margin-top: 25px;
+          max-width: 540px;
+          line-height: 1.6;
+        }
+
+        .stats {
+          max-width: 1380px;
+          margin: auto;
+          padding: 0 5% 60px;
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 14px;
+        }
+
+        .stat-card {
+          border: 1px solid rgba(255,255,255,0.07);
+          background: rgba(13,18,27,0.72);
+          border-radius: 15px;
+          padding: 24px;
+        }
+
+        .stat-label {
+          color: #707b8b;
           font-size: 10px;
           font-weight: 800;
+          letter-spacing: 1.3px;
         }
 
-        .order-side.buy.active {
-          color: #2bdca7;
-          background: rgba(43,220,167,.09);
+        .stat-value {
+          margin-top: 13px;
+          font-size: 27px;
+          font-weight: 750;
+          letter-spacing: -1px;
         }
 
-        .order-side.sell.active {
-          color: #ff667d;
-          background: rgba(255,82,109,.09);
+        .stat-description {
+          margin-top: 7px;
+          color: #687384;
+          font-size: 12px;
         }
 
-        .order-types {
-          display: flex;
-          gap: 19px;
-          padding: 0 18px 14px;
-          border-bottom: 1px solid #172029;
-        }
-
-        .order-type {
-          color: #596a77;
-          background: transparent;
-          cursor: pointer;
-          padding: 0;
-          font-size: 9px;
+        .stat-change {
+          margin-top: 8px;
+          font-size: 12px;
           font-weight: 700;
         }
 
-        .order-type.active {
-          color: #e1ebe8;
+        .stat-change span {
+          color: #667181;
+          font-weight: 500;
         }
 
-        .form {
-          padding: 18px;
+        .markets-section {
+          max-width: 1380px;
+          margin: auto;
+          padding: 0 5% 80px;
         }
 
-        .balance {
+        .section-header {
           display: flex;
           justify-content: space-between;
-          color: #53636f;
-          font-size: 9px;
-          margin-bottom: 12px;
+          align-items: end;
+          margin-bottom: 22px;
         }
 
-        .balance strong {
-          color: #b8c5c1;
-          font-weight: 700;
+        h2 {
+          margin: 0;
+          font-size: 27px;
+          letter-spacing: -1px;
         }
 
-        .field {
-          margin-bottom: 10px;
+        .section-header p {
+          margin: 7px 0 0;
+          color: #6e7888;
+          font-size: 13px;
         }
 
-        .field-label {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 6px;
-          color: #566773;
-          font-size: 9px;
-        }
-
-        .field-box {
-          height: 40px;
+        .updated {
           display: flex;
           align-items: center;
-          border: 1px solid #1b2933;
-          border-radius: 7px;
-          background: #091118;
+          gap: 8px;
+          color: #657080;
+          font-size: 11px;
+        }
+
+        .market-table {
+          border: 1px solid rgba(255,255,255,0.07);
+          border-radius: 16px;
           overflow: hidden;
+          background: rgba(9,13,20,0.85);
         }
 
-        .field-box:focus-within {
-          border-color: rgba(43,220,167,.45);
-        }
-
-        .field-box input {
-          flex: 1;
-          width: 100%;
-          height: 100%;
-          padding: 0 11px;
-          border: 0;
-          outline: 0;
-          color: #e6efec;
-          background: transparent;
-          font-size: 11px;
-        }
-
-        .field-unit {
-          padding-right: 11px;
-          color: #657581;
-          font-size: 9px;
-          font-weight: 700;
-        }
-
-        .percentages {
+        .table-header,
+        .coin-row {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 5px;
-          margin: 12px 0 15px;
+          grid-template-columns:
+            35px
+            minmax(190px, 1.4fr)
+            130px
+            90px
+            90px
+            90px
+            190px
+            125px
+            80px;
+          align-items: center;
+          gap: 15px;
+          padding: 0 22px;
         }
 
-        .percentage {
-          height: 27px;
-          border: 1px solid #192630;
-          background: #081017;
-          color: #5c6c78;
-          border-radius: 5px;
-          cursor: pointer;
-          font-size: 8px;
-          font-weight: 700;
-        }
-
-        .percentage:hover {
-          color: #dbe7e3;
-          border-color: #2b3b46;
-        }
-
-        .order-summary {
-          display: flex;
-          justify-content: space-between;
-          color: #53636f;
-          font-size: 9px;
-          margin: 7px 0;
-        }
-
-        .order-summary strong {
-          color: #aebbb8;
-          font-weight: 700;
-        }
-
-        .submit {
-          width: 100%;
-          height: 43px;
-          margin-top: 12px;
-          border-radius: 7px;
-          cursor: pointer;
-          font-size: 11px;
-          font-weight: 850;
-          color: #04100c;
-          background: #2bdca7;
-          box-shadow: 0 8px 25px rgba(43,220,167,.08);
-        }
-
-        .submit.sell {
-          color: #fff;
-          background: #d94c63;
-          box-shadow: 0 8px 25px rgba(217,76,99,.08);
-        }
-
-        .demo-note {
-          margin-top: 16px;
-          padding: 10px;
-          border-radius: 6px;
-          border: 1px solid #182630;
-          color: #52636f;
-          background: #071016;
-          font-size: 8px;
-          line-height: 1.5;
-          text-align: center;
-        }
-
-        .assets {
-          border-top: 1px solid #172029;
-          padding: 17px 18px;
-        }
-
-        .assets-title {
-          color: #596a76;
-          font-size: 9px;
-          margin-bottom: 11px;
+        .table-header {
+          height: 48px;
+          color: #596373;
+          font-size: 10px;
           text-transform: uppercase;
           letter-spacing: 1px;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .coin-row {
+          min-height: 82px;
+          border-bottom: 1px solid rgba(255,255,255,0.045);
+          font-size: 12px;
+        }
+
+        .coin-row:last-child {
+          border-bottom: none;
+        }
+
+        .coin-row:hover {
+          background: rgba(255,255,255,0.025);
+        }
+
+        .rank {
+          color: #687384;
+          font-size: 12px;
         }
 
         .asset {
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          padding: 8px 0;
+          gap: 13px;
         }
 
-        .asset-left {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .asset-icon {
-          width: 24px;
-          height: 24px;
+        .coin-icon {
+          width: 36px;
+          height: 36px;
           border-radius: 50%;
-          background: #121c24;
-          display: flex;
+        }
+
+        .coin-name {
+          font-size: 13px;
+          font-weight: 700;
+          color: #f1f4f8;
+        }
+
+        .coin-symbol {
+          color: #687384;
+          font-size: 10px;
+          margin-top: 3px;
+          font-weight: 600;
+        }
+
+        .coin-price {
+          font-size: 13px;
+          font-weight: 700;
+        }
+
+        .positive {
+          color: #35d98b;
+          font-weight: 650;
+        }
+
+        .negative {
+          color: #ff6375;
+          font-weight: 650;
+        }
+
+        .chart-wrapper {
+          color: #35d98b;
+          opacity: 0.85;
+        }
+
+        .chart-wrapper .negative {
+          color: #ff6375;
+        }
+
+        .mini-chart {
+          display: block;
+        }
+
+        .mini-chart.positive {
+          color: #35d98b;
+        }
+
+        .mini-chart.negative {
+          color: #ff6375;
+        }
+
+        .chart-empty {
+          color: #4c5562;
+        }
+
+        .market-cap {
+          color: #a0a8b5;
+          font-weight: 600;
+        }
+
+        .trade-button {
+          display: inline-flex;
           align-items: center;
           justify-content: center;
-          font-size: 8px;
-          font-weight: 900;
-          color: #b7c6c1;
-        }
-
-        .asset-name {
-          font-size: 9px;
-          font-weight: 750;
-        }
-
-        .asset-value {
-          color: #85949e;
-          font-size: 9px;
-        }
-
-        .mobile-tabs {
-          display: none;
-        }
-
-        .menu-dropdown {
-          position: absolute;
-          right: 22px;
-          top: 58px;
-          width: 150px;
-          padding: 7px;
-          border: 1px solid #1b2933;
-          border-radius: 9px;
-          background: #091118;
-          box-shadow: 0 18px 50px rgba(0,0,0,.4);
-        }
-
-        .menu-item {
-          width: 100%;
-          text-align: left;
-          padding: 9px;
-          color: #81909b;
-          background: transparent;
-          border-radius: 6px;
-          cursor: pointer;
+          height: 31px;
+          border: 1px solid rgba(55,110,255,0.35);
+          border-radius: 7px;
+          color: #72a0ff;
+          text-decoration: none;
           font-size: 10px;
+          font-weight: 750;
+          transition: 0.2s;
         }
 
-        .menu-item:hover {
-          background: #101a22;
-          color: #e4eeeb;
+        .trade-button:hover {
+          background: #2864ff;
+          color: white;
+          border-color: #2864ff;
         }
 
-        @media (max-width: 1150px) {
-          .main-grid {
+        .loading-row {
+          opacity: 0.8;
+        }
+
+        .skeleton {
+          background: linear-gradient(
+            90deg,
+            #111721 25%,
+            #19212d 50%,
+            #111721 75%
+          );
+          background-size: 200% 100%;
+          animation: skeleton 1.4s infinite;
+          border-radius: 6px;
+        }
+
+        .skeleton.small {
+          width: 15px;
+          height: 10px;
+        }
+
+        .skeleton.avatar {
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+        }
+
+        .asset-loading {
+          display: flex;
+          align-items: center;
+          gap: 13px;
+        }
+
+        .skeleton.name {
+          width: 90px;
+          height: 11px;
+        }
+
+        .skeleton.price {
+          width: 75px;
+          height: 11px;
+        }
+
+        .skeleton.percent {
+          width: 45px;
+          height: 11px;
+        }
+
+        .skeleton.chart {
+          width: 140px;
+          height: 35px;
+        }
+
+        .skeleton.marketcap {
+          width: 75px;
+          height: 11px;
+        }
+
+        @keyframes skeleton {
+          0% {
+            background-position: 200% 0;
+          }
+
+          100% {
+            background-position: -200% 0;
+          }
+        }
+
+        .error-box {
+          padding: 45px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 10px;
+          color: #788395;
+        }
+
+        .error-box strong {
+          color: white;
+        }
+
+        .error-box button {
+          margin-top: 10px;
+          background: #2864ff;
+          border: none;
+          color: white;
+          padding: 9px 17px;
+          border-radius: 7px;
+          cursor: pointer;
+          font-weight: 700;
+        }
+
+        .footer {
+          border-top: 1px solid rgba(255,255,255,0.06);
+          min-height: 80px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 5%;
+          color: #505b6b;
+          font-size: 11px;
+        }
+
+        .footer-logo {
+          color: #a3adbb;
+          font-weight: 700;
+        }
+
+        @media (max-width: 1100px) {
+          .table-header,
+          .coin-row {
             grid-template-columns:
-              minmax(0, 1fr)
-              280px;
-          }
-
-          .order-column {
-            display: none;
-          }
-        }
-
-        @media (max-width: 800px) {
-          .header {
-            height: 60px;
-            padding: 0 13px;
-          }
-
-          .brand {
-            min-width: auto;
-          }
-
-          .nav {
-            display: none;
-          }
-
-          .header-button {
-            padding: 0 9px;
-          }
-
-          .marketbar {
-            padding: 11px 13px;
-            gap: 18px;
-            min-height: 82px;
-          }
-
-          .market-stat:nth-of-type(n + 4) {
-            display: none;
-          }
-
-          .market-switcher {
-            display: none;
-          }
-
-          .main-grid {
-            display: block;
-            min-height: 0;
-          }
-
-          .left-column {
-            border-right: 0;
-          }
-
-          .side-column {
-            display: none;
-            border-right: 0;
-          }
-
-          .order-column {
-            display: none;
-          }
-
-          .left-column.mobile-book .chart-area,
-          .left-column.mobile-trade .chart-area {
-            display: none;
-          }
-
-          .left-column.mobile-book .bottom-panel,
-          .left-column.mobile-trade .bottom-panel {
-            display: none;
-          }
-
-          .chart-area {
-            min-height: 500px;
-            padding: 8px 8px 5px;
+              30px
+              minmax(170px, 1.5fr)
+              110px
+              70px
+              70px
+              70px
+              140px
+              100px
+              70px;
+            gap: 10px;
+            padding: 0 15px;
           }
 
           .chart-wrapper {
-            min-height: 470px;
-          }
-
-          .chart {
-            height: 410px;
-          }
-
-          .mobile-tabs {
-            position: fixed;
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 56px;
-            z-index: 30;
-            border-top: 1px solid #18242d;
-            background: rgba(5,10,15,.97);
-            backdrop-filter: blur(14px);
-          }
-
-          .mobile-tab {
-            background: transparent;
-            color: #596a77;
-            font-size: 10px;
-            font-weight: 750;
-          }
-
-          .mobile-tab.active {
-            color: #2bdca7;
-          }
-
-          .mobile-book-panel,
-          .mobile-trade-panel {
-            display: block;
-            padding-bottom: 60px;
-          }
-
-          .mobile-book-panel .side-column,
-          .mobile-trade-panel .side-column {
-            display: block;
-            min-height: calc(100vh - 145px);
-          }
-
-          .desktop-only {
-            display: none;
+            transform: scale(0.8);
+            transform-origin: left center;
           }
         }
 
-        @media (min-width: 801px) {
-          .mobile-book-panel,
-          .mobile-trade-panel {
+        @media (max-width: 850px) {
+          .header {
+            padding: 0 20px;
+          }
+
+          nav {
             display: none;
+          }
+
+          .hero {
+            padding: 65px 20px 40px;
+          }
+
+          .stats {
+            padding: 0 20px 45px;
+            grid-template-columns: 1fr;
+          }
+
+          .markets-section {
+            padding: 0 20px 60px;
+          }
+
+          .section-header {
+            align-items: start;
+            flex-direction: column;
+            gap: 15px;
+          }
+
+          .market-table {
+            overflow-x: auto;
+          }
+
+          .table-header,
+          .coin-row {
+            min-width: 900px;
+          }
+
+          .footer {
+            padding: 20px;
+            gap: 10px;
+            flex-direction: column;
+            align-items: start;
           }
         }
 
-        @media (max-width: 480px) {
-          .brand-name {
-            font-size: 16px;
+        @media (max-width: 500px) {
+          h1 {
+            letter-spacing: -2.5px;
           }
 
-          .header-actions .header-button:first-child {
-            display: none;
-          }
-
-          .price-large {
-            font-size: 17px;
-          }
-
-          .pair {
-            min-width: 145px;
-          }
-
-          .chart-toolbar {
-            padding: 0 9px;
-          }
-
-          .toolbar-right {
-            display: none;
-          }
-
-          .chart-area {
-            min-height: 465px;
-          }
-
-          .chart {
-            height: 380px;
+          .header-button {
+            padding: 9px 13px;
           }
         }
       `}</style>
-
-      <main className="exchange">
-        <header className="header">
-          <div className="brand">
-            <div className="brand-logo">C</div>
-
-            <div className="brand-name">
-              Crypto<span>Lab</span>
-            </div>
-          </div>
-
-          <nav className="nav">
-            <span className="active">Exchange</span>
-            <span>Markets</span>
-            <span>Assets</span>
-            <span>Orders</span>
-          </nav>
-
-          <div className="header-actions">
-            <button
-              className="header-button"
-              onClick={() =>
-                alert(
-                  "CryptoLab demo account.\nNo real funds are connected."
-                )
-              }
-            >
-              Demo Account
-            </button>
-
-            <button
-              className="header-button"
-              onClick={() => setMenuOpen(!menuOpen)}
-            >
-              ☰
-            </button>
-
-            <div className="profile">G</div>
-          </div>
-
-          {menuOpen && (
-            <div className="menu-dropdown">
-              <button className="menu-item">
-                Account
-              </button>
-              <button className="menu-item">
-                Security
-              </button>
-              <button className="menu-item">
-                API
-              </button>
-              <button className="menu-item">
-                Settings
-              </button>
-            </div>
-          )}
-        </header>
-
-        <section className="marketbar">
-          <div className="pair">
-            <div className="pair-select">
-              <div className="coin-icon">
-                {market.base}
-              </div>
-
-              <div>
-                <div className="pair-name">
-                  {market.symbol}
-                </div>
-                <div className="pair-small">
-                  CryptoLab Spot
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="market-stat">
-            <div className="market-stat-label">
-              Last Price
-            </div>
-            <div className="price-large">
-              {formatPrice(market.price)}
-            </div>
-          </div>
-
-          <div className="market-stat">
-            <div className="market-stat-label">
-              24h Change
-            </div>
-            <div
-              className={
-                market.change >= 0
-                  ? "green market-stat-value"
-                  : "red market-stat-value"
-              }
-            >
-              {market.change >= 0 ? "+" : ""}
-              {market.change.toFixed(2)}%
-            </div>
-          </div>
-
-          <div className="market-stat">
-            <div className="market-stat-label">
-              24h Volume
-            </div>
-            <div className="market-stat-value">
-              {market.volume} USDT
-            </div>
-          </div>
-
-          <div className="market-stat">
-            <div className="market-stat-label">
-              Mark Price
-            </div>
-            <div className="market-stat-value">
-              {formatPrice(market.price * 0.9998)}
-            </div>
-          </div>
-
-          <div className="market-switcher">
-            {MARKETS.map((item) => (
-              <button
-                key={item.symbol}
-                className={
-                  item.symbol === selectedSymbol
-                    ? "market-chip active"
-                    : "market-chip"
-                }
-                onClick={() =>
-                  setSelectedSymbol(item.symbol)
-                }
-              >
-                {item.symbol}
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <div
-          className={`main-grid ${
-            mobilePanel === "book"
-              ? "mobile-book"
-              : mobilePanel === "trade"
-              ? "mobile-trade"
-              : ""
-          }`}
-        >
-          <section className="left-column">
-            <div className="chart-toolbar">
-              <div className="toolbar-left">
-                {TIMEFRAMES.map((item) => (
-                  <button
-                    key={item}
-                    className={
-                      item === timeframe
-                        ? "tool-button active"
-                        : "tool-button"
-                    }
-                    onClick={() =>
-                      setTimeframe(item)
-                    }
-                  >
-                    {item}
-                  </button>
-                ))}
-
-                <button className="tool-button">
-                  Indicators
-                </button>
-              </div>
-
-              <div className="toolbar-right">
-                <span>●</span>
-                <span>TradingView style</span>
-              </div>
-            </div>
-
-            <div className="chart-area">
-              <CandleChart
-                candles={candles}
-                timeframe={timeframe}
-              />
-            </div>
-
-            <div className="bottom-panel">
-              <div className="panel-header">
-                <button className="panel-tab active">
-                  Positions
-                </button>
-
-                <button className="panel-tab">
-                  Open Orders
-                </button>
-
-                <button className="panel-tab">
-                  Order History
-                </button>
-              </div>
-
-              <div className="positions-empty">
-                No open positions
-              </div>
-            </div>
-          </section>
-
-          <aside className="side-column">
-            <div className="side-title">
-              Order Book
-              <span>0.01</span>
-            </div>
-
-            <div className="book-head">
-              <span>Price</span>
-              <span>Amount</span>
-              <span>Total</span>
-            </div>
-
-            {book.asks.map((row, index) => (
-              <div className="book-row" key={`ask-${index}`}>
-                <div
-                  className="book-depth ask-depth"
-                  style={{
-                    width: `${35 + index * 7}%`,
-                  }}
-                />
-
-                <span className="red">
-                  {formatPrice(row.price)}
-                </span>
-
-                <span className="amount">
-                  {row.amount.toFixed(4)}
-                </span>
-
-                <span className="total">
-                  {Math.round(row.total).toLocaleString()}
-                </span>
-              </div>
-            ))}
-
-            <div className="mid-price">
-              <div className="mid-price-value">
-                {formatPrice(market.price)}
-              </div>
-
-              <div className="mid-label">
-                ≈ ${formatPrice(market.price)}
-              </div>
-            </div>
-
-            {book.bids.map((row, index) => (
-              <div className="book-row" key={`bid-${index}`}>
-                <div
-                  className="book-depth bid-depth"
-                  style={{
-                    width: `${32 + index * 7}%`,
-                  }}
-                />
-
-                <span className="green">
-                  {formatPrice(row.price)}
-                </span>
-
-                <span className="amount">
-                  {row.amount.toFixed(4)}
-                </span>
-
-                <span className="total">
-                  {Math.round(row.total).toLocaleString()}
-                </span>
-              </div>
-            ))}
-
-            <div className="side-title trades-title">
-              Recent Trades
-              <span>Price / Amount</span>
-            </div>
-
-            {trades.map((trade, index) => (
-              <div className="trade-row" key={index}>
-                <span
-                  className={
-                    trade.side === "buy"
-                      ? "buy"
-                      : "sell"
-                  }
-                >
-                  {formatPrice(trade.price)}
-                </span>
-
-                <span className="amount">
-                  {trade.amount.toFixed(4)}
-                </span>
-
-                <span className="time">
-                  {trade.time}
-                </span>
-              </div>
-            ))}
-          </aside>
-
-          <aside className="order-column">
-            <div className="order-header">
-              Place Order
-            </div>
-
-            <div className="order-tabs">
-              <button
-                className={
-                  side === "buy"
-                    ? "order-side buy active"
-                    : "order-side buy"
-                }
-                onClick={() => setSide("buy")}
-              >
-                Buy {market.base}
-              </button>
-
-              <button
-                className={
-                  side === "sell"
-                    ? "order-side sell active"
-                    : "order-side sell"
-                }
-                onClick={() => setSide("sell")}
-              >
-                Sell {market.base}
-              </button>
-            </div>
-
-            <div className="order-types">
-              {(["Market", "Limit", "Stop"] as const).map(
-                (type) => (
-                  <button
-                    key={type}
-                    className={
-                      orderType === type
-                        ? "order-type active"
-                        : "order-type"
-                    }
-                    onClick={() =>
-                      setOrderType(type)
-                    }
-                  >
-                    {type}
-                  </button>
-                )
-              )}
-            </div>
-
-            <div className="form">
-              <div className="balance">
-                <span>Available</span>
-                <strong>
-                  {available.toFixed(
-                    side === "buy" ? 2 : 6
-                  )}{" "}
-                  {side === "buy"
-                    ? "USDT"
-                    : market.base}
-                </strong>
-              </div>
-
-              {orderType !== "Market" && (
-                <div className="field">
-                  <div className="field-label">
-                    <span>Price</span>
-                  </div>
-
-                  <div className="field-box">
-                    <input
-                      value={limitPrice}
-                      onChange={(e) =>
-                        setLimitPrice(
-                          e.target.value
-                        )
-                      }
-                      inputMode="decimal"
-                    />
-
-                    <span className="field-unit">
-                      USDT
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              <div className="field">
-                <div className="field-label">
-                  <span>Amount</span>
-                </div>
-
-                <div className="field-box">
-                  <input
-                    value={amount}
-                    onChange={(e) =>
-                      setAmount(e.target.value)
-                    }
-                    placeholder="0.00"
-                    inputMode="decimal"
-                  />
-
-                  <span className="field-unit">
-                    {market.base}
-                  </span>
-                </div>
-              </div>
-
-              <div className="percentages">
-                {[0.25, 0.5, 0.75, 1].map(
-                  (percent) => (
-                    <button
-                      key={percent}
-                      className="percentage"
-                      onClick={() =>
-                        setPercentage(percent)
-                      }
-                    >
-                      {percent * 100}%
-                    </button>
-                  )
-                )}
-              </div>
-
-              <div className="order-summary">
-                <span>Price</span>
-                <strong>
-                  {formatPrice(orderPrice)} USDT
-                </strong>
-              </div>
-
-              <div className="order-summary">
-                <span>Amount</span>
-                <strong>
-                  {numericAmount
-                    ? numericAmount.toFixed(6)
-                    : "0.000000"}{" "}
-                  {market.base}
-                </strong>
-              </div>
-
-              <div className="order-summary">
-                <span>Total</span>
-                <strong>
-                  {total.toLocaleString("en-US", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}{" "}
-                  USDT
-                </strong>
-              </div>
-
-              <button
-                className={
-                  side === "sell"
-                    ? "submit sell"
-                    : "submit"
-                }
-                onClick={submitOrder}
-              >
-                {side === "buy"
-                  ? `Buy ${market.base}`
-                  : `Sell ${market.base}`}
-              </button>
-
-              <div className="demo-note">
-                DEMO MODE
-                <br />
-                Orders are simulated locally.
-                No real cryptocurrency or funds
-                are transferred.
-              </div>
-            </div>
-
-            <div className="assets">
-              <div className="assets-title">
-                Demo Assets
-              </div>
-
-              <div className="asset">
-                <div className="asset-left">
-                  <div className="asset-icon">
-                    $
-                  </div>
-                  <span className="asset-name">
-                    USDT
-                  </span>
-                </div>
-
-                <span className="asset-value">
-                  12,480.52
-                </span>
-              </div>
-
-              <div className="asset">
-                <div className="asset-left">
-                  <div className="asset-icon">
-                    ₿
-                  </div>
-                  <span className="asset-name">
-                    BTC
-                  </span>
-                </div>
-
-                <span className="asset-value">
-                  0.184700
-                </span>
-              </div>
-
-              <div className="asset">
-                <div className="asset-left">
-                  <div className="asset-icon">
-                    Ξ
-                  </div>
-                  <span className="asset-name">
-                    ETH
-                  </span>
-                </div>
-
-                <span className="asset-value">
-                  2.3400
-                </span>
-              </div>
-            </div>
-          </aside>
-        </div>
-
-        <div className="mobile-book-panel">
-          <aside className="side-column">
-            <div className="side-title">
-              Order Book
-              <span>0.01</span>
-            </div>
-
-            <div className="book-head">
-              <span>Price</span>
-              <span>Amount</span>
-              <span>Total</span>
-            </div>
-
-            {book.asks.map((row, index) => (
-              <div className="book-row" key={`m-ask-${index}`}>
-                <div
-                  className="book-depth ask-depth"
-                  style={{
-                    width: `${35 + index * 7}%`,
-                  }}
-                />
-
-                <span className="red">
-                  {formatPrice(row.price)}
-                </span>
-
-                <span className="amount">
-                  {row.amount.toFixed(4)}
-                </span>
-
-                <span className="total">
-                  {Math.round(row.total).toLocaleString()}
-                </span>
-              </div>
-            ))}
-
-            <div className="mid-price">
-              <div className="mid-price-value">
-                {formatPrice(market.price)}
-              </div>
-              <div className="mid-label">
-                Current Price
-              </div>
-            </div>
-
-            {book.bids.map((row, index) => (
-              <div className="book-row" key={`m-bid-${index}`}>
-                <div
-                  className="book-depth bid-depth"
-                  style={{
-                    width: `${32 + index * 7}%`,
-                  }}
-                />
-
-                <span className="green">
-                  {formatPrice(row.price)}
-                </span>
-
-                <span className="amount">
-                  {row.amount.toFixed(4)}
-                </span>
-
-                <span className="total">
-                  {Math.round(row.total).toLocaleString()}
-                </span>
-              </div>
-            ))}
-          </aside>
-        </div>
-
-        <div className="mobile-trade-panel">
-          <aside className="side-column">
-            <div className="side-title">
-              Recent Trades
-            </div>
-
-            {trades.map((trade, index) => (
-              <div
-                className="trade-row"
-                key={`mobile-${index}`}
-              >
-                <span
-                  className={
-                    trade.side === "buy"
-                      ? "buy"
-                      : "sell"
-                  }
-                >
-                  {formatPrice(trade.price)}
-                </span>
-
-                <span className="amount">
-                  {trade.amount.toFixed(4)}
-                </span>
-
-                <span className="time">
-                  {trade.time}
-                </span>
-              </div>
-            ))}
-          </aside>
-        </div>
-
-        <div className="mobile-tabs">
-          <button
-            className={
-              mobilePanel === "chart"
-                ? "mobile-tab active"
-                : "mobile-tab"
-            }
-            onClick={() =>
-              setMobilePanel("chart")
-            }
-          >
-            Chart
-          </button>
-
-          <button
-            className={
-              mobilePanel === "book"
-                ? "mobile-tab active"
-                : "mobile-tab"
-            }
-            onClick={() =>
-              setMobilePanel("book")
-            }
-          >
-            Order Book
-          </button>
-
-          <button
-            className={
-              mobilePanel === "trade"
-                ? "mobile-tab active"
-                : "mobile-tab"
-            }
-            onClick={() =>
-              setMobilePanel("trade")
-            }
-          >
-            Trades
-          </button>
-        </div>
-      </main>
-    </>
+    </main>
   );
 }

@@ -927,15 +927,23 @@ export default function HomePage() {
                     </div>
 
                     <div>
-                      <button
-                        className="trade-button"
-                        onClick={() =>
-                          router.push(`/trade?symbol=${coin.symbol.toUpperCase()}`)
-                          )
-                        }
-                      >
-                        Trade
-                      </button>
+                      <a
+  href={`/trade?symbol=${coin.symbol.toUpperCase()}`}
+  style={{
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "8px 14px",
+    borderRadius: "7px",
+    background: "#ffffff",
+    color: "#05080d",
+    textDecoration: "none",
+    fontSize: "12px",
+    fontWeight: 700,
+  }}
+>
+  Trade
+</a>
                     </div>
                   </div>
                 );

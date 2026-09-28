@@ -956,8 +956,7 @@ export default function Home() {
 
           <button
             className="nav-item"
-            onClick={() =>
-              alert("Futures module is coming soon")
+            onClick={() => ={() => router.push("/futures")}
             }
           >
             <Icon type="futures" />
@@ -966,8 +965,7 @@ export default function Home() {
 
           <button
             className="nav-item"
-            onClick={() =>
-              alert("Assets module is coming soon")
+            onClick={() => router.push("/assets")}
             }
           >
             <Icon type="assets" />

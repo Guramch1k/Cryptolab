@@ -1,22 +1,24 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
-type Side = "buy" | "sell";
-type OrderType = "market" | "limit" | "stop";
+type Coin = {
+  id: string;
+  symbol: string;
+  name: string;
+  image: string;
+  current_price: number;
+  price_change_percentage_24h: number;
+  market_cap: number;
+  market_cap_rank: number;
+};
 
 const GREEN = "#2bdca7";
 
-const coins = [
-  { symbol: "BTC", name: "Bitcoin", price: 67124.42 },
-  { symbol: "ETH", name: "Ethereum", price: 2584.31 },
-  { symbol: "SOL", name: "Solana", price: 151.82 },
-  { symbol: "BNB", name: "BNB", price: 615.42 },
-];
-
 function Icon({
   type,
-  size = 20,
+  size = 22,
 }: {
   type: "home" | "markets" | "trade" | "futures" | "assets";
   size?: number;
@@ -71,6 +73,10 @@ function Icon({
         <path d="M9 15V5" />
         <path d="M14 19v-8" />
         <path d="M19 13V3" />
+        <path d="M3 18h2" />
+        <path d="M8 15h2" />
+        <path d="M13 19h2" />
+        <path d="M18 13h2" />
       </svg>
     );
   }
@@ -85,92 +91,106 @@ function Icon({
   );
 }
 
-function generateCandles(base: number) {
-  return Array.from({ length: 55 }, (_, i) => {
-    const wave =
-      Math.sin(i * 0.55) * base * 0.008 +
-      Math.sin(i * 0.17) * base * 0.014;
-
-    const noise =
-      ((i * 17) % 11 - 5) * base * 0.002;
-
-    const close = base + wave + noise;
-    const open =
-      close +
-      (((i * 13) % 9) - 4) * base * 0.0025;
-
-    const high =
-      Math.max(open, close) +
-      base * (0.002 + ((i * 7) % 6) * 0.001);
-
-    const low =
-      Math.min(open, close) -
-      base * (0.002 + ((i * 5) % 5) * 0.001);
-
-    return {
-      open,
-      close,
-      high,
-      low,
-    };
-  });
-}
-
-export default function ExchangePage() {
-  const [selected, setSelected] = useState("BTC");
-  const [side, setSide] = useState<Side>("buy");
-  const [orderType, setOrderType] =
-    useState<OrderType>("limit");
-
-  const [amount, setAmount] = useState("");
-  const [price, setPrice] = useState("67124.42");
-  const [percentage, setPercentage] = useState(0);
-
-  const coin =
-    coins.find((item) => item.symbol === selected) ??
-    coins[0];
-
-  const candles = useMemo(
-    () => generateCandles(coin.price),
-    [coin.price]
-  );
-
-  const asks = [
-    coin.price * 1.0034,
-    coin.price * 1.0027,
-    coin.price * 1.0019,
-    coin.price * 1.0011,
-    coin.price * 1.0005,
-  ];
-
-  const bids = [
-    coin.price * 0.9995,
-    coin.price * 0.9989,
-    coin.price * 0.9981,
-    coin.price * 0.9972,
-    coin.price * 0.9964,
-  ];
-
-  function selectCoin(symbol: string) {
-    setSelected(symbol);
-
-    const newCoin =
-      coins.find((item) => item.symbol === symbol) ??
-      coins[0];
-
-    setPrice(newCoin.price.toFixed(2));
-  }
-
-  function placeOrder() {
-    if (!amount) {
-      alert("Enter order amount");
-      return;
-    }
-
-    alert(
-      `Demo ${side.toUpperCase()} order created for ${selected}.`
+function formatPrice(value: number) {
+  if (value >= 1000) {
+    return (
+      "$" +
+      value.toLocaleString("en-US", {
+        maximumFractionDigits: 0,
+      })
     );
   }
+
+  if (value >= 1) {
+    return (
+      "$" +
+      value.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    );
+  }
+
+  return (
+    "$" +
+    value.toLocaleString("en-US", {
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 4,
+    })
+  );
+}
+
+function formatMarketCap(value: number) {
+  if (value >= 1_000_000_000_000) {
+    return "$" + (value / 1_000_000_000_000).toFixed(2) + "T";
+  }
+
+  if (value >= 1_000_000_000) {
+    return "$" + (value / 1_000_000_000).toFixed(2) + "B";
+  }
+
+  if (value >= 1_000_000) {
+    return "$" + (value / 1_000_000).toFixed(2) + "M";
+  }
+
+  return "$" + value.toLocaleString("en-US");
+}
+
+export default function Home() {
+  const router = useRouter();
+
+  const [coins, setCoins] = useState<Coin[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMarkets() {
+      try {
+        const response = await fetch(
+          "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1&sparkline=false&price_change_percentage=24h",
+          {
+            cache: "no-store",
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("CoinGecko request failed");
+        }
+
+        const data = await response.json();
+
+        if (!cancelled) {
+          setCoins(data);
+
+          setLastUpdated(
+            new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          );
+
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error(error);
+
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadMarkets();
+
+    const interval = setInterval(loadMarkets, 30000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
 
   return (
     <>
@@ -197,1098 +217,719 @@ export default function ExchangePage() {
           color: #eef5f3;
         }
 
-        button,
-        input {
+        button {
           font: inherit;
         }
 
-        button {
-          cursor: pointer;
-        }
-
-        .exchange {
+        .page {
           min-height: 100vh;
-          padding-bottom: 86px;
           background:
             radial-gradient(
               circle at 50% -10%,
-              rgba(43,220,167,.06),
-              transparent 35%
+              rgba(43,220,167,.08),
+              transparent 34%
             ),
             #03070b;
+          padding-bottom: 100px;
         }
 
         .topbar {
           position: sticky;
           top: 0;
-          z-index: 30;
-          height: 68px;
+          z-index: 20;
+          height: 72px;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0 24px;
+          padding: 0 34px;
           border-bottom: 1px solid rgba(255,255,255,.06);
-          background: rgba(3,7,11,.9);
-          backdrop-filter: blur(18px);
+          background: rgba(3,7,11,.88);
+          backdrop-filter: blur(20px);
         }
 
         .brand {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 11px;
         }
 
         .brand-logo {
-          width: 32px;
-          height: 32px;
+          width: 34px;
+          height: 34px;
+          border-radius: 10px;
           display: flex;
           align-items: center;
           justify-content: center;
-          border-radius: 9px;
-          background: ${GREEN};
           color: #06100d;
-          font-size: 17px;
+          background: #2bdca7;
+          font-size: 18px;
           font-weight: 900;
           box-shadow: 0 0 24px rgba(43,220,167,.18);
         }
 
-        .brand-name {
-          color: ${GREEN};
-          font-size: 20px;
+        .brand-text {
+          color: #2bdca7;
+          font-size: 21px;
           font-weight: 800;
           letter-spacing: -1px;
         }
 
-        .header-right {
+        .status {
           display: flex;
           align-items: center;
-          gap: 18px;
-          color: #627078;
+          gap: 7px;
+          color: #718083;
           font-size: 11px;
         }
 
-        .live {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .live-dot {
+        .status-dot {
           width: 7px;
           height: 7px;
           border-radius: 50%;
-          background: ${GREEN};
+          background: #2bdca7;
           box-shadow: 0 0 10px rgba(43,220,167,.7);
         }
 
-        .pair-bar {
+        .container {
+          width: min(1180px, calc(100% - 40px));
+          margin: 0 auto;
+          padding-top: 38px;
+        }
+
+        .hero {
           display: flex;
-          align-items: center;
-          gap: 10px;
-          min-height: 66px;
-          padding: 0 24px;
-          overflow-x: auto;
-          border-bottom: 1px solid rgba(255,255,255,.05);
-          scrollbar-width: none;
-        }
-
-        .pair-bar::-webkit-scrollbar {
-          display: none;
-        }
-
-        .pair {
-          flex: 0 0 auto;
-          padding: 8px 14px;
-          border: 1px solid transparent;
-          border-radius: 10px;
-          background: transparent;
-          color: #59686f;
-          text-align: left;
-        }
-
-        .pair.active {
-          color: ${GREEN};
-          border-color: rgba(43,220,167,.18);
-          background: rgba(43,220,167,.06);
-        }
-
-        .pair-symbol {
-          font-size: 12px;
-          font-weight: 750;
-        }
-
-        .pair-price {
-          margin-top: 3px;
-          font-size: 9px;
-          opacity: .7;
-        }
-
-        .terminal {
-          width: min(1450px, calc(100% - 32px));
-          margin: 16px auto;
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) 330px;
-          gap: 14px;
-        }
-
-        .left {
-          min-width: 0;
-          display: grid;
-          gap: 14px;
-        }
-
-        .panel {
-          overflow: hidden;
-          border: 1px solid rgba(255,255,255,.06);
-          border-radius: 15px;
-          background: rgba(8,14,19,.8);
-        }
-
-        .panel-header {
-          height: 48px;
-          display: flex;
-          align-items: center;
+          align-items: flex-end;
           justify-content: space-between;
-          padding: 0 16px;
-          border-bottom: 1px solid rgba(255,255,255,.05);
+          gap: 30px;
+          margin-bottom: 28px;
         }
 
-        .panel-title {
-          color: #dce7e4;
-          font-size: 12px;
-          font-weight: 700;
+        .hero h1 {
+          margin: 0;
+          font-size: clamp(32px, 5vw, 52px);
+          line-height: 1;
+          letter-spacing: -2px;
+          color: #eef5f3;
         }
 
-        .timeframes {
-          display: flex;
-          gap: 4px;
+        .hero h1 span {
+          color: #2bdca7;
         }
 
-        .timeframe {
-          border: 0;
-          padding: 5px 8px;
-          border-radius: 6px;
-          background: transparent;
-          color: #4f5e65;
-          font-size: 9px;
+        .hero p {
+          margin: 11px 0 0;
+          color: #66757b;
+          font-size: 13px;
         }
 
-        .timeframe.active {
-          color: ${GREEN};
-          background: rgba(43,220,167,.07);
-        }
-
-        .chart {
-          position: relative;
-          height: 430px;
-          padding: 18px;
-          overflow: hidden;
-          background:
-            linear-gradient(
-              rgba(255,255,255,.025) 1px,
-              transparent 1px
-            ),
-            linear-gradient(
-              90deg,
-              rgba(255,255,255,.025) 1px,
-              transparent 1px
-            );
-          background-size: 70px 70px;
-        }
-
-        .candles {
-          height: 100%;
-          display: flex;
-          align-items: stretch;
-          gap: 5px;
-        }
-
-        .candle {
-          position: relative;
-          flex: 1;
-          min-width: 3px;
-        }
-
-        .wick {
-          position: absolute;
-          left: 50%;
-          width: 1px;
-          transform: translateX(-50%);
-          background: currentColor;
-          opacity: .8;
-        }
-
-        .body {
-          position: absolute;
-          left: 15%;
-          right: 15%;
-          min-height: 3px;
-          border-radius: 1px;
-        }
-
-        .green {
-          color: ${GREEN};
-        }
-
-        .red {
-          color: #ff6679;
-        }
-
-        .chart-price {
-          position: absolute;
-          right: 12px;
-          top: 50%;
-          padding: 4px 6px;
-          border-radius: 4px;
-          color: #07100e;
-          background: ${GREEN};
-          font-size: 8px;
-          font-weight: 800;
-        }
-
-        .orderbook {
-          height: 300px;
-        }
-
-        .book-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 16px;
-          padding: 15px;
-        }
-
-        .book-side {
-          min-width: 0;
-        }
-
-        .book-label {
-          display: grid;
-          grid-template-columns: 1fr 1fr 1fr;
-          margin-bottom: 7px;
-          color: #435158;
-          font-size: 8px;
-        }
-
-        .book-row {
-          position: relative;
-          display: grid;
-          grid-template-columns: 1fr 1fr 1fr;
-          padding: 4px 0;
-          color: #84918f;
-          font-size: 9px;
-        }
-
-        .depth {
-          position: absolute;
-          right: 0;
-          top: 0;
-          bottom: 0;
-          opacity: .08;
-          background: currentColor;
-        }
-
-        .ask {
-          color: #ff6679;
-        }
-
-        .bid {
-          color: ${GREEN};
-        }
-
-        .mid-price {
-          padding: 8px 15px;
-          border-top: 1px solid rgba(255,255,255,.04);
-          border-bottom: 1px solid rgba(255,255,255,.04);
-          color: ${GREEN};
-          font-size: 12px;
-          font-weight: 750;
-        }
-
-        .trades {
-          min-height: 240px;
-        }
-
-        .trade-head,
-        .trade-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr 1fr;
-          padding: 0 16px;
-        }
-
-        .trade-head {
-          padding-top: 12px;
-          padding-bottom: 8px;
-          color: #435158;
-          font-size: 8px;
-        }
-
-        .trade-row {
-          padding-top: 5px;
-          padding-bottom: 5px;
-          color: #87938f;
-          font-size: 9px;
-        }
-
-        .trade-row span:first-child {
-          color: ${GREEN};
-        }
-
-        .order-panel {
-          height: fit-content;
-          position: sticky;
-          top: 84px;
-        }
-
-        .order-tabs {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          border-bottom: 1px solid rgba(255,255,255,.05);
-        }
-
-        .order-tab {
-          height: 48px;
-          border: 0;
-          background: transparent;
-          color: #526168;
-          font-size: 12px;
-          font-weight: 700;
-        }
-
-        .order-tab.active.buy {
-          color: ${GREEN};
-          box-shadow: inset 0 -2px ${GREEN};
-        }
-
-        .order-tab.active.sell {
-          color: #ff6679;
-          box-shadow: inset 0 -2px #ff6679;
-        }
-
-        .order-types {
-          display: flex;
-          gap: 4px;
-          padding: 15px 15px 4px;
-        }
-
-        .order-type {
-          border: 0;
-          padding: 7px 9px;
-          border-radius: 7px;
-          background: transparent;
-          color: #526168;
-          font-size: 9px;
-        }
-
-        .order-type.active {
-          color: ${GREEN};
-          background: rgba(43,220,167,.07);
-        }
-
-        .form {
-          padding: 10px 15px 18px;
-        }
-
-        .field {
-          margin-top: 11px;
-        }
-
-        .field-label {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 6px;
-          color: #59676e;
-          font-size: 9px;
-        }
-
-        .input-wrap {
-          display: flex;
-          align-items: center;
-          border: 1px solid rgba(255,255,255,.07);
-          border-radius: 9px;
-          background: #070d12;
-        }
-
-        .input-wrap:focus-within {
-          border-color: rgba(43,220,167,.3);
-        }
-
-        .input-wrap input {
-          width: 100%;
-          border: 0;
-          outline: 0;
-          padding: 11px;
-          background: transparent;
-          color: #e9f1ef;
+        .updated {
+          color: #506067;
           font-size: 11px;
+          white-space: nowrap;
         }
 
-        .input-suffix {
-          padding-right: 11px;
-          color: #536168;
-          font-size: 9px;
-        }
-
-        .percentages {
+        .stats {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
-          gap: 5px;
-          margin-top: 8px;
+          gap: 14px;
+          margin-bottom: 30px;
         }
 
-        .percentage {
-          border: 1px solid rgba(255,255,255,.05);
-          border-radius: 6px;
-          padding: 6px 2px;
-          color: #56646a;
-          background: transparent;
-          font-size: 8px;
+        .stat {
+          padding: 20px;
+          border: 1px solid rgba(255,255,255,.06);
+          border-radius: 16px;
+          background: rgba(10,17,22,.72);
+          box-shadow: 0 15px 45px rgba(0,0,0,.12);
         }
 
-        .percentage.active {
-          color: ${GREEN};
-          border-color: rgba(43,220,167,.2);
+        .stat-label {
+          color: #627078;
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 1.2px;
         }
 
-        .balance {
+        .stat-value {
+          margin-top: 9px;
+          color: #eef5f3;
+          font-size: 21px;
+          font-weight: 750;
+        }
+
+        .section-title {
           display: flex;
+          align-items: center;
           justify-content: space-between;
-          margin-top: 18px;
-          padding-top: 13px;
-          border-top: 1px solid rgba(255,255,255,.05);
-          color: #536168;
-          font-size: 9px;
+          margin-bottom: 13px;
         }
 
-        .balance strong {
-          color: #9ba8a5;
-          font-weight: 600;
+        .section-title h2 {
+          margin: 0;
+          color: #eef5f3;
+          font-size: 17px;
         }
 
-        .order-button {
-          width: 100%;
-          margin-top: 16px;
-          border: 0;
-          border-radius: 9px;
-          padding: 12px;
-          background: ${GREEN};
-          color: #04100c;
+        .section-title span {
+          color: #526169;
           font-size: 11px;
-          font-weight: 800;
         }
 
-        .order-button.sell {
-          background: #ff6679;
-          color: #160508;
+        .market {
+          overflow: hidden;
+          border: 1px solid rgba(255,255,255,.06);
+          border-radius: 18px;
+          background: rgba(7,13,18,.84);
         }
 
-        .demo-note {
-          margin-top: 10px;
-          color: #3f4d53;
-          font-size: 8px;
-          line-height: 1.5;
-          text-align: center;
+        .market-header,
+        .coin-row {
+          display: grid;
+          grid-template-columns:
+            60px
+            minmax(190px, 1.7fr)
+            minmax(130px, 1fr)
+            minmax(120px, .8fr)
+            minmax(120px, .8fr)
+            100px;
+          align-items: center;
+          column-gap: 15px;
+          padding: 0 22px;
+        }
+
+        .market-header {
+          min-height: 44px;
+          color: #536169;
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          border-bottom: 1px solid rgba(255,255,255,.05);
+        }
+
+        .coin-row {
+          min-height: 74px;
+          border-bottom: 1px solid rgba(255,255,255,.04);
+          transition: background .2s ease;
+        }
+
+        .coin-row:last-child {
+          border-bottom: 0;
+        }
+
+        .coin-row:hover {
+          background: rgba(43,220,167,.025);
+        }
+
+        .rank {
+          color: #4e5c63;
+          font-size: 12px;
+        }
+
+        .coin-name {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .coin-logo {
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          background: #111a1f;
+          object-fit: cover;
+        }
+
+        .coin-title {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+        }
+
+        .coin-main {
+          color: #eaf2ef;
+          font-size: 13px;
+          font-weight: 700;
+        }
+
+        .coin-symbol {
+          color: #536169;
+          font-size: 10px;
+          text-transform: uppercase;
+        }
+
+        .price {
+          color: #eef5f3;
+          font-size: 13px;
+          font-weight: 650;
+        }
+
+        .change {
+          font-size: 12px;
+          font-weight: 700;
+        }
+
+        .positive {
+          color: #2bdca7;
+        }
+
+        .negative {
+          color: #ff6679;
+        }
+
+        .market-cap {
+          color: #91a09f;
+          font-size: 12px;
+        }
+
+        .trade-button {
+          border: 1px solid rgba(43,220,167,.2);
+          border-radius: 9px;
+          padding: 8px 12px;
+          color: #2bdca7;
+          background: rgba(43,220,167,.06);
+          cursor: pointer;
+          font-size: 11px;
+          font-weight: 700;
+          transition: all .2s ease;
+        }
+
+        .trade-button:hover {
+          background: rgba(43,220,167,.12);
+          border-color: rgba(43,220,167,.4);
+        }
+
+        .loading {
+          min-height: 420px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #536169;
+          font-size: 12px;
+        }
+
+        .spinner {
+          width: 18px;
+          height: 18px;
+          margin-right: 10px;
+          border: 2px solid rgba(43,220,167,.15);
+          border-top-color: #2bdca7;
+          border-radius: 50%;
+          animation: spin .7s linear infinite;
+        }
+
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
         }
 
         .bottom-nav {
           position: fixed;
           left: 50%;
-          bottom: 12px;
+          bottom: 18px;
           transform: translateX(-50%);
           z-index: 50;
-          width: min(620px, calc(100% - 18px));
+          width: min(620px, calc(100% - 28px));
           display: grid;
           grid-template-columns: repeat(5, 1fr);
           padding: 8px;
           border: 1px solid rgba(43,220,167,.1);
-          border-radius: 19px;
-          background: rgba(6,13,17,.94);
-          backdrop-filter: blur(20px);
-          box-shadow: 0 20px 55px rgba(0,0,0,.45);
+          border-radius: 20px;
+          background: rgba(6,13,17,.92);
+          backdrop-filter: blur(22px);
+          box-shadow:
+            0 20px 60px rgba(0,0,0,.45),
+            0 0 40px rgba(43,220,167,.04);
         }
 
         .nav-item {
-          min-height: 50px;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
           gap: 5px;
+          min-height: 55px;
           border: 0;
-          border-radius: 13px;
+          border-radius: 14px;
           background: transparent;
-          color: rgba(43,220,167,.45);
+          color: rgba(43,220,167,.48);
+          cursor: pointer;
+          transition: all .2s ease;
+        }
+
+        .nav-item:hover {
+          color: rgba(43,220,167,.8);
+          background: rgba(43,220,167,.04);
         }
 
         .nav-item.active {
-          color: ${GREEN};
+          color: #2bdca7;
           background: rgba(43,220,167,.08);
+          box-shadow: inset 0 0 20px rgba(43,220,167,.025);
         }
 
         .nav-label {
-          font-size: 8px;
+          font-size: 9px;
           font-weight: 700;
+          letter-spacing: .3px;
         }
 
-        @media (max-width: 900px) {
-          .terminal {
-            grid-template-columns: 1fr;
+        @media (max-width: 850px) {
+          .stats {
+            grid-template-columns: repeat(2, 1fr);
           }
 
-          .order-panel {
-            position: static;
+          .market-header {
+            display: none;
           }
 
-          .chart {
-            height: 360px;
+          .coin-row {
+            grid-template-columns:
+              30px
+              minmax(150px, 1fr)
+              minmax(90px, .8fr)
+              75px;
+          }
+
+          .coin-row > :nth-child(4),
+          .coin-row > :nth-child(5) {
+            display: none;
+          }
+
+          .trade-button {
+            padding: 7px 9px;
           }
         }
 
         @media (max-width: 600px) {
           .topbar {
-            padding: 0 15px;
+            height: 62px;
+            padding: 0 17px;
           }
 
-          .header-right {
-            gap: 0;
+          .brand-text {
+            font-size: 18px;
           }
 
-          .live {
-            display: none;
+          .brand-logo {
+            width: 30px;
+            height: 30px;
+            font-size: 16px;
           }
 
-          .pair-bar {
+          .status {
+            font-size: 9px;
+          }
+
+          .container {
+            width: calc(100% - 24px);
+            padding-top: 26px;
+          }
+
+          .hero {
+            display: block;
+          }
+
+          .hero h1 {
+            font-size: 35px;
+          }
+
+          .updated {
+            display: block;
+            margin-top: 12px;
+          }
+
+          .stats {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 9px;
+          }
+
+          .stat {
+            padding: 15px;
+          }
+
+          .stat-value {
+            font-size: 16px;
+          }
+
+          .market {
+            border-radius: 15px;
+          }
+
+          .coin-row {
+            grid-template-columns:
+              24px
+              minmax(120px, 1fr)
+              minmax(85px, auto)
+              62px;
             padding: 0 12px;
+            column-gap: 7px;
+            min-height: 68px;
           }
 
-          .terminal {
-            width: calc(100% - 14px);
-            margin: 8px auto;
+          .coin-logo {
+            width: 30px;
+            height: 30px;
           }
 
-          .panel {
-            border-radius: 12px;
+          .coin-main {
+            font-size: 12px;
           }
 
-          .chart {
-            height: 300px;
-            padding: 10px;
+          .coin-symbol {
+            font-size: 9px;
           }
 
-          .candles {
-            gap: 3px;
+          .price {
+            font-size: 11px;
           }
 
-          .orderbook {
-            height: auto;
+          .change {
+            font-size: 10px;
           }
 
-          .book-grid {
-            gap: 8px;
-            padding: 10px;
+          .trade-button {
+            padding: 6px 7px;
+            font-size: 9px;
           }
 
-          .book-row {
+          .bottom-nav {
+            bottom: 10px;
+            width: calc(100% - 18px);
+            border-radius: 18px;
+          }
+
+          .nav-item {
+            min-height: 50px;
+          }
+
+          .nav-label {
             font-size: 8px;
           }
         }
       `}</style>
 
-      <main className="exchange">
+      <main className="page">
         <header className="topbar">
           <div className="brand">
             <div className="brand-logo">C</div>
-            <div className="brand-name">CryptoLab</div>
+            <div className="brand-text">CryptoLab</div>
           </div>
 
-          <div className="header-right">
-            <div className="live">
-              <span className="live-dot" />
-              Live Market
-            </div>
-
-            <span>DEMO</span>
+          <div className="status">
+            <span className="status-dot" />
+            Markets Live
           </div>
         </header>
 
-        <div className="pair-bar">
-          {coins.map((item) => (
-            <button
-              key={item.symbol}
-              className={`pair ${
-                selected === item.symbol
-                  ? "active"
-                  : ""
-              }`}
-              onClick={() =>
-                selectCoin(item.symbol)
-              }
-            >
-              <div className="pair-symbol">
-                {item.symbol}/USDT
+        <div className="container">
+          <section className="hero">
+            <div>
+              <h1>
+                Crypto<span> Markets</span>
+              </h1>
+
+              <p>
+                Real-time cryptocurrency market overview
+              </p>
+            </div>
+
+            <div className="updated">
+              {lastUpdated
+                ? `Updated ${lastUpdated}`
+                : "Updating prices..."}
+            </div>
+          </section>
+
+          <section className="stats">
+            <div className="stat">
+              <div className="stat-label">
+                Tracked Assets
               </div>
 
-              <div className="pair-price">
-                ${item.price.toLocaleString()}
+              <div className="stat-value">
+                10
               </div>
-            </button>
-          ))}
-        </div>
+            </div>
 
-        <div className="terminal">
-          <div className="left">
-            <section className="panel">
-              <div className="panel-header">
-                <div className="panel-title">
-                  {selected}/USDT
-                </div>
-
-                <div className="timeframes">
-                  {[
-                    "1m",
-                    "5m",
-                    "15m",
-                    "1H",
-                    "4H",
-                    "1D",
-                  ].map((time, index) => (
-                    <button
-                      key={time}
-                      className={`timeframe ${
-                        index === 2
-                          ? "active"
-                          : ""
-                      }`}
-                    >
-                      {time}
-                    </button>
-                  ))}
-                </div>
+            <div className="stat">
+              <div className="stat-label">
+                Market
               </div>
 
-              
-                      <div
-                        className={`candle ${
-                          isGreen
-                            ? "green"
-                            : "red"
-                        }`}
-                        key={index}
-                      >
-                        <div
-                          className="wick"
-                          style={{
-                            top: `${high}%`,
-                            height: `${low - high}%`,
-                          }}
-                        />
-
-                        <div
-                          className="body"
-                          style={{
-                            top: `${top}%`,
-                            height: `${Math.max(
-                              bottom - top,
-                              1.2
-                            )}%`,
-                            background:
-                              "currentColor",
-                          }}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="chart-price">
-                  {coin.price.toLocaleString(
-                    "en-US",
-                    {
-                      maximumFractionDigits: 2,
-                    }
-                  )}
-                </div>
+              <div className="stat-value">
+                Live
               </div>
-            </section>
+            </div>
 
-            <section className="panel orderbook">
-              <div className="panel-header">
-                <div className="panel-title">
-                  Order Book
-                </div>
-
-                <div
-                  style={{
-                    color: "#526168",
-                    fontSize: 9,
-                  }}
-                >
-                  0.01
-                </div>
+            <div className="stat">
+              <div className="stat-label">
+                Update
               </div>
 
-              <div className="book-grid">
-                <div className="book-side">
-                  <div className="book-label">
-                    <span>Price</span>
-                    <span>Amount</span>
-                    <span>Total</span>
-                  </div>
+              <div className="stat-value">
+                30 sec
+              </div>
+            </div>
 
-                  {asks.map((value, index) => (
-                    <div
-                      className="book-row ask"
-                      key={value}
-                    >
-                      <div
-                        className="depth"
-                        style={{
-                          width: `${
-                            35 + index * 11
-                          }%`,
-                        }}
-                      />
+            <div className="stat">
+              <div className="stat-label">
+                Exchange
+              </div>
 
-                      <span>
-                        {value.toFixed(2)}
-                      </span>
+              <div className="stat-value">
+                CryptoLab
+              </div>
+            </div>
+          </section>
 
-                      <span>
-                        {(0.18 +
-                          index * 0.07
-                        ).toFixed(3)}
-                      </span>
+          <section>
+            <div className="section-title">
+              <h2>Top cryptocurrencies</h2>
+              <span>By market cap</span>
+            </div>
 
-                      <span>
-                        {(
-                          value *
-                          (0.18 +
-                            index * 0.07)
-                        ).toFixed(0)}
-                      </span>
-                    </div>
-                  ))}
+            <div className="market">
+              <div className="market-header">
+                <div>#</div>
+                <div>Asset</div>
+                <div>Price</div>
+                <div>24h</div>
+                <div>Market Cap</div>
+                <div />
+              </div>
+
+              {loading ? (
+                <div className="loading">
+                  <span className="spinner" />
+                  Loading market data...
                 </div>
-
-                <div className="book-side">
-                  <div className="book-label">
-                    <span>Price</span>
-                    <span>Amount</span>
-                    <span>Total</span>
-                  </div>
-
-                  {bids.map((value, index) => (
-                    <div
-                      className="book-row bid"
-                      key={value}
-                    >
-                      <div
-                        className="depth"
-                        style={{
-                          width: `${
-                            35 + index * 11
-                          }%`,
-                        }}
-                      />
-
-                      <span>
-                        {value.toFixed(2)}
-                      </span>
-
-                      <span>
-                        {(0.16 +
-                          index * 0.08
-                        ).toFixed(3)}
-                      </span>
-
-                      <span>
-                        {(
-                          value *
-                          (0.16 +
-                            index * 0.08)
-                        ).toFixed(0)}
-                      </span>
-                    </div>
-                  ))}
+              ) : coins.length === 0 ? (
+                <div className="loading">
+                  Market data temporarily unavailable
                 </div>
-              </div>
-
-              <div className="mid-price">
-                ≈ {coin.price.toFixed(2)} USDT
-              </div>
-            </section>
-
-            <section className="panel trades">
-              <div className="panel-header">
-                <div className="panel-title">
-                  Recent Trades
-                </div>
-              </div>
-
-              <div className="trade-head">
-                <span>Price</span>
-                <span>Amount</span>
-                <span>Time</span>
-              </div>
-
-              {[0, 1, 2, 3, 4, 5].map(
-                (index) => {
-                  const tradePrice =
-                    coin.price +
-                    ((index % 3) - 1) *
-                      coin.price *
-                      0.0005;
+              ) : (
+                coins.map((coin) => {
+                  const positive =
+                    coin.price_change_percentage_24h >= 0;
 
                   return (
                     <div
-                      className="trade-row"
-                      key={index}
+                      className="coin-row"
+                      key={coin.id}
                     >
-                      <span>
-                        {tradePrice.toFixed(2)}
-                      </span>
+                      <div className="rank">
+                        {coin.market_cap_rank}
+                      </div>
 
-                      <span>
-                        {(
-                          0.08 +
-                          index * 0.031
-                        ).toFixed(3)}
-                      </span>
+                      <div className="coin-name">
+                        <img
+                          className="coin-logo"
+                          src={coin.image}
+                          alt={coin.name}
+                        />
 
-                      <span>
-                        13:{20 + index}:4
-                        {index}
-                      </span>
+                        <div className="coin-title">
+                          <div className="coin-main">
+                            {coin.name}
+                          </div>
+
+                          <div className="coin-symbol">
+                            {coin.symbol}/USDT
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="price">
+                        {formatPrice(coin.current_price)}
+                      </div>
+
+                      <div
+                        className={`change ${
+                          positive
+                            ? "positive"
+                            : "negative"
+                        }`}
+                      >
+                        {positive ? "+" : ""}
+                        {coin.price_change_percentage_24h?.toFixed(
+                          2
+                        )}
+                        %
+                      </div>
+
+                      <div className="market-cap">
+                        {formatMarketCap(coin.market_cap)}
+                      </div>
+
+                      <div>
+                        <button
+                          className="trade-button"
+                          onClick={() =>
+                            router.push(
+                              `/exchange?symbol=${coin.symbol.toUpperCase()}`
+                            )
+                          }
+                        >
+                          Trade
+                        </button>
+                      </div>
                     </div>
                   );
-                }
+                })
               )}
-            </section>
-          </div>
-
-          <aside className="panel order-panel">
-            <div className="order-tabs">
-              <button
-                className={`order-tab ${
-                  side === "buy"
-                    ? "active buy"
-                    : ""
-                }`}
-                onClick={() => setSide("buy")}
-              >
-                Buy
-              </button>
-
-              <button
-                className={`order-tab ${
-                  side === "sell"
-                    ? "active sell"
-                    : ""
-                }`}
-                onClick={() => setSide("sell")}
-              >
-                Sell
-              </button>
             </div>
-
-            <div className="order-types">
-              <button
-                className={`order-type ${
-                  orderType === "market"
-                    ? "active"
-                    : ""
-                }`}
-                onClick={() =>
-                  setOrderType("market")
-                }
-              >
-                Market
-              </button>
-
-              <button
-                className={`order-type ${
-                  orderType === "limit"
-                    ? "active"
-                    : ""
-                }`}
-                onClick={() =>
-                  setOrderType("limit")
-                }
-              >
-                Limit
-              </button>
-
-              <button
-                className={`order-type ${
-                  orderType === "stop"
-                    ? "active"
-                    : ""
-                }`}
-                onClick={() =>
-                  setOrderType("stop")
-                }
-              >
-                Stop
-              </button>
-            </div>
-
-            <div className="form">
-              {orderType !== "market" && (
-                <div className="field">
-                  <div className="field-label">
-                    <span>Price</span>
-                    <span>USDT</span>
-                  </div>
-
-                  <div className="input-wrap">
-                    <input
-                      value={price}
-                      onChange={(e) =>
-                        setPrice(e.target.value)
-                      }
-                      inputMode="decimal"
-                    />
-
-                    <span className="input-suffix">
-                      USDT
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              <div className="field">
-                <div className="field-label">
-                  <span>Amount</span>
-                  <span>{selected}</span>
-                </div>
-
-                <div className="input-wrap">
-                  <input
-                    value={amount}
-                    onChange={(e) =>
-                      setAmount(e.target.value)
-                    }
-                    placeholder="0.00"
-                    inputMode="decimal"
-                  />
-
-                  <span className="input-suffix">
-                    {selected}
-                  </span>
-                </div>
-              </div>
-
-              <div className="percentages">
-                {[25, 50, 75, 100].map(
-                  (value) => (
-                    <button
-                      key={value}
-                      className={`percentage ${
-                        percentage === value
-                          ? "active"
-                          : ""
-                      }`}
-                      onClick={() =>
-                        setPercentage(value)
-                      }
-                    >
-                      {value}%
-                    </button>
-                  )
-                )}
-              </div>
-
-              <div className="balance">
-                <span>
-                  Available
-                </span>
-
-                <strong>
-                  {side === "buy"
-                    ? "25,000.00 USDT"
-                    : `2.450 ${selected}`}
-                </strong>
-              </div>
-
-              <button
-                className={`order-button ${
-                  side === "sell"
-                    ? "sell"
-                    : ""
-                }`}
-                onClick={placeOrder}
-              >
-                {side === "buy"
-                  ? `Buy ${selected}`
-                  : `Sell ${selected}`}
-              </button>
-
-              <div className="demo-note">
-                Demo trading environment.
-                No real funds or blockchain
-                transactions are used.
-              </div>
-            </div>
-          </aside>
+          </section>
         </div>
 
         <nav className="bottom-nav">
           <button
-            className="nav-item"
-            onClick={() =>
-              (window.location.href = "/")
-            }
+            className="nav-item active"
+            onClick={() => router.push("/")}
           >
             <Icon type="home" />
-            <span className="nav-label">
-              Home
-            </span>
+            <span className="nav-label">Home</span>
           </button>
 
           <button
             className="nav-item"
-            onClick={() =>
-              (window.location.href = "/")
-            }
+            onClick={() => {
+              window.scrollTo({
+                top: 0,
+                behavior: "smooth",
+              });
+            }}
           >
             <Icon type="markets" />
-            <span className="nav-label">
-              Markets
-            </span>
+            <span className="nav-label">Markets</span>
           </button>
 
-          <button className="nav-item active">
+          <button
+            className="nav-item"
+            onClick={() => router.push("/exchange")}
+          >
             <Icon type="trade" />
-            <span className="nav-label">
-              Trade
-            </span>
+            <span className="nav-label">Trade</span>
           </button>
 
           <button
             className="nav-item"
             onClick={() =>
-              alert(
-                "Futures module is coming soon"
-              )
+              alert("Futures module is coming soon")
             }
           >
             <Icon type="futures" />
-            <span className="nav-label">
-              Futures
-            </span>
+            <span className="nav-label">Futures</span>
           </button>
 
           <button
             className="nav-item"
             onClick={() =>
-              alert(
-                "Assets module is coming soon"
-              )
+              alert("Assets module is coming soon")
             }
           >
             <Icon type="assets" />
-            <span className="nav-label">
-              Assets
-            </span>
+            <span className="nav-label">Assets</span>
           </button>
         </nav>
       </main>

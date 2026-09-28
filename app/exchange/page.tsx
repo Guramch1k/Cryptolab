@@ -134,7 +134,7 @@ function formatMarketCap(value: number) {
   return "$" + value.toLocaleString("en-US");
 }
 
-export default function ExchangePage() {
+export default function HomePage() {
   const router = useRouter();
 
   const [coins, setCoins] = useState<Coin[]>([]);
@@ -143,6 +143,39 @@ export default function ExchangePage() {
 
   useEffect(() => {
     let cancelled = false;
+
+    const CACHE_KEY = "cryptolab_market_data";
+
+    function loadCachedMarkets() {
+      try {
+        const cached = sessionStorage.getItem(CACHE_KEY);
+
+        if (!cached) {
+          return;
+        }
+
+        const parsed: {
+          coins: Coin[];
+          updated: string;
+        } = JSON.parse(cached);
+
+        if (
+          parsed.coins &&
+          Array.isArray(parsed.coins) &&
+          parsed.coins.length > 0 &&
+          !cancelled
+        ) {
+          setCoins(parsed.coins);
+          setLastUpdated(parsed.updated);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error(
+          "Failed to load cached market data:",
+          error
+        );
+      }
+    }
 
     async function loadMarkets() {
       try {
@@ -159,29 +192,57 @@ export default function ExchangePage() {
 
         const data: Coin[] = await response.json();
 
+        if (!Array.isArray(data) || data.length === 0) {
+          throw new Error("Empty CoinGecko response");
+        }
+
+        const updated = new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
         if (!cancelled) {
           setCoins(data);
-
-          setLastUpdated(
-            new Date().toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          );
-
+          setLastUpdated(updated);
           setLoading(false);
+
+          try {
+            sessionStorage.setItem(
+              CACHE_KEY,
+              JSON.stringify({
+                coins: data,
+                updated,
+              })
+            );
+          } catch (error) {
+            console.error(
+              "Failed to cache market data:",
+              error
+            );
+          }
         }
       } catch (error) {
-        console.error(error);
+        console.error("CoinGecko error:", error);
 
         if (!cancelled) {
+          /*
+           * ВАЖНО:
+           * Не очищаем coins при ошибке.
+           * Если старые котировки уже есть,
+           * они останутся на экране.
+           */
           setLoading(false);
         }
       }
     }
 
+    // 1. Сначала показываем последние сохранённые котировки
+    loadCachedMarkets();
+
+    // 2. Затем получаем свежие данные
     loadMarkets();
 
+    // 3. Автоматическое обновление каждые 30 секунд
     const interval = setInterval(loadMarkets, 30000);
 
     return () => {
@@ -894,7 +955,7 @@ export default function ExchangePage() {
                         }`}
                       >
                         {positive ? "+" : ""}
-                        {coin.price_change_percentage_24h?.toFixed(2)}
+                        {coin.price_change_percentage_24h.toFixed(2)}
                         %
                       </div>
 
@@ -924,8 +985,8 @@ export default function ExchangePage() {
 
         <nav className="bottom-nav">
           <button
-            className="nav-item"
-            onClick={() => router.push("/")}
+            className="nav-item active"
+            onClick={() => router.push("/home")}
           >
             <Icon type="home" />
             <span className="nav-label">Home</span>
@@ -933,14 +994,14 @@ export default function ExchangePage() {
 
           <button
             className="nav-item"
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/home")}
           >
             <Icon type="markets" />
             <span className="nav-label">Markets</span>
           </button>
 
           <button
-            className="nav-item active"
+            className="nav-item"
             onClick={() => router.push("/exchange")}
           >
             <Icon type="trade" />

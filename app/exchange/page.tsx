@@ -1,39 +1,4 @@
 "use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-
-type Coin = {
-  id: string;
-  symbol: string;
-  name: string;
-  image: string;
-  current_price: number;
-  price_change_percentage_24h: number;
-  market_cap: number;
-  market_cap_rank: number;
-};
-
-const GREEN = "#2bdca7";
-
-function Icon({
-  type,
-  size = 22,
-}: {
-  type: "home" | "markets" | "trade" | "futures" | "assets";
-  size?: number;
-}) {
-  const common = {
-    width: size,
-    height: size,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.8,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-  };
-
   if (type === "home") {
     return (
       <svg {...common}>

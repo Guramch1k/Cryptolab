@@ -956,8 +956,8 @@ export default function HomePage() {
           <button
             className="nav-item active"
             onClick={() =>
-              router.push("/exchange")
-            }
+  router.push("/trade")
+}
           >
             <Icon type="home" />
             <span className="nav-label">

@@ -1,7 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-
 type Coin = {
   id: string;
   symbol: string;
@@ -237,8 +235,6 @@ function formatMarketCap(value: number) {
 }
 
 export default function HomePage() {
-  const router = useRouter();
-
   return (
     <>
       <style>{`
@@ -610,6 +606,7 @@ export default function HomePage() {
           color: rgba(43,220,167,.48);
           cursor: pointer;
           transition: all .2s ease;
+          text-decoration: none;
         }
 
         .nav-item:hover {
@@ -780,19 +777,13 @@ export default function HomePage() {
           </div>
 
           <div className="auth-buttons">
-            <button
-              className="login-button"
-              onClick={() => router.push("/login")}
-            >
+            <a href="/login" className="login-button">
               Log In
-            </button>
+            </a>
 
-            <button
-              className="signup-button"
-              onClick={() => router.push("/signup")}
-            >
+            <a href="/signup" className="signup-button">
               Sign Up
-            </button>
+            </a>
           </div>
         </header>
 
@@ -928,22 +919,17 @@ export default function HomePage() {
 
                     <div>
                       <a
-  href={`/trade?symbol=${coin.symbol.toUpperCase()}`}
-  style={{
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "8px 14px",
-    borderRadius: "7px",
-    background: "#ffffff",
-    color: "#05080d",
-    textDecoration: "none",
-    fontSize: "12px",
-    fontWeight: 700,
-  }}
->
-  Trade
-</a>
+                        href={`/trade?symbol=${coin.symbol.toUpperCase()}`}
+                        className="trade-button"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          textDecoration: "none",
+                        }}
+                      >
+                        Trade
+                      </a>
                     </div>
                   </div>
                 );
@@ -952,59 +938,59 @@ export default function HomePage() {
           </section>
         </div>
 
+        {/* BOTTOM NAVIGATION */}
+
         <nav className="bottom-nav">
+          <a
+            className="nav-item"
+            href="/exchange"
+          >
+            <Icon type="home" />
+            <span className="nav-label">
+              Home
+            </span>
+          </a>
 
-  <button
-    className="nav-item"
-    onClick={() => router.push("/exchange")}
-  >
-    <Icon type="home" />
-    <span className="nav-label">
-      Home
-    </span>
-  </button>
+          <a
+            className="nav-item active"
+            href="/exchange"
+          >
+            <Icon type="markets" />
+            <span className="nav-label">
+              Markets
+            </span>
+          </a>
 
-  <button
-    className="nav-item active"
-    onClick={() => router.push("/exchange")}
-  >
-    <Icon type="markets" />
-    <span className="nav-label">
-      Markets
-    </span>
-  </button>
+          <a
+            className="nav-item"
+            href="/trade"
+          >
+            <Icon type="trade" />
+            <span className="nav-label">
+              Trade
+            </span>
+          </a>
 
-  <button
-    className="nav-item"
-    onClick={() => router.push("/trade")}
-  >
-    <Icon type="trade" />
-    <span className="nav-label">
-      Trade
-    </span>
-  </button>
+          <a
+            className="nav-item"
+            href="/futures"
+          >
+            <Icon type="futures" />
+            <span className="nav-label">
+              Futures
+            </span>
+          </a>
 
-  <button
-    className="nav-item"
-    onClick={() => router.push("/futures")}
-  >
-    <Icon type="futures" />
-    <span className="nav-label">
-      Futures
-    </span>
-  </button>
-
-  <button
-    className="nav-item"
-    onClick={() => router.push("/assets")}
-  >
-    <Icon type="assets" />
-    <span className="nav-label">
-      Assets
-    </span>
-  </button>
-
-</nav>
+          <a
+            className="nav-item"
+            href="/assets"
+          >
+            <Icon type="assets" />
+            <span className="nav-label">
+              Assets
+            </span>
+          </a>
+        </nav>
       </main>
     </>
   );

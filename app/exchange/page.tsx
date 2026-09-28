@@ -18,7 +18,7 @@ const initialCoins: Coin[] = [
     id: "bitcoin",
     symbol: "BTC",
     name: "Bitcoin",
-    icon: "₿",
+    icon: "bitcoin",
     current_price: 109842,
     price_change_percentage_24h: 2.84,
     market_cap: 2180000000000,
@@ -28,7 +28,7 @@ const initialCoins: Coin[] = [
     id: "ethereum",
     symbol: "ETH",
     name: "Ethereum",
-    icon: "Ξ",
+    icon: "ethereum",
     current_price: 3942.15,
     price_change_percentage_24h: 3.17,
     market_cap: 475000000000,
@@ -38,7 +38,7 @@ const initialCoins: Coin[] = [
     id: "tether",
     symbol: "USDT",
     name: "Tether",
-    icon: "₮",
+    icon: "tether",
     current_price: 1,
     price_change_percentage_24h: 0.01,
     market_cap: 145000000000,
@@ -48,7 +48,7 @@ const initialCoins: Coin[] = [
     id: "binancecoin",
     symbol: "BNB",
     name: "BNB",
-    icon: "B",
+    icon: "binance-coin",
     current_price: 712.42,
     price_change_percentage_24h: 1.92,
     market_cap: 105000000000,
@@ -58,7 +58,7 @@ const initialCoins: Coin[] = [
     id: "solana",
     symbol: "SOL",
     name: "Solana",
-    icon: "S",
+    icon: "solana",
     current_price: 221.64,
     price_change_percentage_24h: 4.21,
     market_cap: 108000000000,
@@ -68,7 +68,7 @@ const initialCoins: Coin[] = [
     id: "usd-coin",
     symbol: "USDC",
     name: "USDC",
-    icon: "$",
+    icon: "usd-coin",
     current_price: 1,
     price_change_percentage_24h: -0.01,
     market_cap: 56000000000,
@@ -78,7 +78,7 @@ const initialCoins: Coin[] = [
     id: "ripple",
     symbol: "XRP",
     name: "XRP",
-    icon: "X",
+    icon: "xrp",
     current_price: 2.84,
     price_change_percentage_24h: 2.63,
     market_cap: 166000000000,
@@ -88,7 +88,7 @@ const initialCoins: Coin[] = [
     id: "dogecoin",
     symbol: "DOGE",
     name: "Dogecoin",
-    icon: "Ð",
+    icon: "dogecoin",
     current_price: 0.234,
     price_change_percentage_24h: 1.46,
     market_cap: 35000000000,
@@ -98,7 +98,7 @@ const initialCoins: Coin[] = [
     id: "cardano",
     symbol: "ADA",
     name: "Cardano",
-    icon: "A",
+    icon: "cardano",
     current_price: 0.842,
     price_change_percentage_24h: 2.18,
     market_cap: 30000000000,
@@ -108,7 +108,7 @@ const initialCoins: Coin[] = [
     id: "avalanche-2",
     symbol: "AVAX",
     name: "Avalanche",
-    icon: "A",
+    icon: "avalanche",
     current_price: 42.18,
     price_change_percentage_24h: 3.74,
     market_cap: 17000000000,
@@ -297,11 +297,12 @@ export default function HomePage() {
 
   return (
     <main className="page">
+      {/* HEADER */}
       <header className="header">
-        <div className="brand">
+        <a href="/exchange" className="brand">
           <div className="brand-mark">C</div>
           <span>CryptoLab</span>
-        </div>
+        </a>
 
         <div className="header-actions">
           <a href="/login" className="login-button">
@@ -314,6 +315,7 @@ export default function HomePage() {
         </div>
       </header>
 
+      {/* HERO */}
       <section className="hero">
         <div>
           <div className="eyebrow">
@@ -346,6 +348,7 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* STATS */}
       <section className="stats">
         <div className="stat-card">
           <span>Trading Pairs</span>
@@ -353,13 +356,15 @@ export default function HomePage() {
         </div>
 
         <div className="stat-card">
-          <span>Market Demo</span>
+          <span>Market Data</span>
           <strong>Live</strong>
         </div>
 
         <div className="stat-card">
           <span>Status</span>
-          <strong className="online">Online</strong>
+          <strong className="online">
+            Online
+          </strong>
         </div>
 
         <div className="stat-card">
@@ -368,6 +373,7 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* MARKETS */}
       <section className="markets-section">
         <div className="section-header">
           <div>
@@ -380,91 +386,99 @@ export default function HomePage() {
           </a>
         </div>
 
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Asset</th>
-                <th>Price</th>
-                <th>24h</th>
-                <th>Market Cap</th>
-                <th></th>
-              </tr>
-            </thead>
+        <div className="market-list">
+          {coins.map((coin) => {
+            const positive =
+              coin.price_change_percentage_24h >= 0;
 
-            <tbody>
-              {coins.map((coin) => {
-                const positive =
-                  coin.price_change_percentage_24h >= 0;
+            return (
+              <div
+                className="coin-row"
+                key={coin.id}
+              >
+                {/* COIN */}
+                <div className="coin-info">
+                  <img
+                    src={`https://assets.coincap.io/assets/icons/${coin.symbol.toLowerCase()}@2x.png`}
+                    alt={coin.name}
+                    className="coin-logo"
+                    onError={(e) => {
+                      e.currentTarget.style.display =
+                        "none";
 
-                return (
-                  <tr key={coin.id}>
-                    <td>
-                      <div className="asset">
-                        <div className="coin-icon">
-                          {coin.icon}
-                        </div>
+                      const fallback =
+                        e.currentTarget
+                          .nextElementSibling as HTMLElement | null;
 
-                        <div>
-                          <strong>
-                            {coin.symbol}
-                          </strong>
+                      if (fallback) {
+                        fallback.style.display =
+                          "flex";
+                      }
+                    }}
+                  />
 
-                          <span>
-                            {coin.name}
-                          </span>
-                        </div>
-                      </div>
-                    </td>
+                  <div className="coin-fallback">
+                    {coin.symbol.charAt(0)}
+                  </div>
 
-                    <td>
-                      <span className="price">
-                        ${formatPrice(coin.current_price)}
-                      </span>
-                    </td>
+                  <div className="coin-name">
+                    <strong>
+                      {coin.symbol}
+                    </strong>
 
-                    <td>
-                      <span
-                        className={
-                          positive
-                            ? "change positive"
-                            : "change negative"
-                        }
-                      >
-                        {positive ? "+" : ""}
-                        {coin.price_change_percentage_24h.toFixed(
-                          2
-                        )}
-                        %
-                      </span>
-                    </td>
+                    <span>
+                      {coin.name}
+                    </span>
+                  </div>
+                </div>
 
-                    <td>
-                      <span className="market-cap">
-                        {formatMarketCap(
-                          coin.market_cap
-                        )}
-                      </span>
-                    </td>
+                {/* PRICE */}
+                <div className="coin-price">
+                  <span>
+                    ${formatPrice(
+                      coin.current_price
+                    )}
+                  </span>
+                </div>
 
-                    <td>
-                      <a
-                        href={`/trade?symbol=${coin.symbol.toUpperCase()}`}
-                        className="trade-button"
-                      >
-                        Trade
-                      </a>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                {/* CHANGE */}
+                <div
+                  className={`coin-change ${
+                    positive
+                      ? "positive"
+                      : "negative"
+                  }`}
+                >
+                  {positive ? "+" : ""}
+                  {coin.price_change_percentage_24h.toFixed(
+                    2
+                  )}
+                  %
+                </div>
+
+                {/* MARKET CAP */}
+                <div className="coin-market-cap">
+                  {formatMarketCap(
+                    coin.market_cap
+                  )}
+                </div>
+
+                {/* TRADE */}
+                <a
+                  href={`/trade?symbol=${coin.symbol.toUpperCase()}`}
+                  className="trade-button"
+                >
+                  Trade
+                </a>
+              </div>
+            );
+          })}
         </div>
       </section>
 
-      <section className="bottom-space"></section>
+      <div className="bottom-space"></div>
 
+      {/* BOTTOM NAVIGATION */}
       <nav className="bottom-nav">
         <a
           className="nav-item active"
@@ -520,13 +534,14 @@ export default function HomePage() {
           padding-bottom: 100px;
         }
 
+        /* HEADER */
+
         .header {
           height: 76px;
           display: flex;
           align-items: center;
           justify-content: space-between;
           padding: 0 48px;
-          border-bottom: 1px solid #151b23;
           background: #05080d;
         }
 
@@ -537,6 +552,8 @@ export default function HomePage() {
           font-size: 21px;
           font-weight: 800;
           letter-spacing: -0.5px;
+          color: white;
+          text-decoration: none;
         }
 
         .brand-mark {
@@ -570,12 +587,10 @@ export default function HomePage() {
 
         .login-button {
           color: #ffffff;
-          border: 1px solid #28313c;
           background: #0b1117;
         }
 
         .login-button:hover {
-          border-color: #46515e;
           background: #101821;
         }
 
@@ -587,6 +602,8 @@ export default function HomePage() {
         .signup-button:hover {
           background: #48e7b7;
         }
+
+        /* HERO */
 
         .hero {
           max-width: 1180px;
@@ -656,6 +673,8 @@ export default function HomePage() {
           box-shadow: 0 0 10px currentColor;
         }
 
+        /* STATS */
+
         .stats {
           max-width: 1180px;
           margin: 0 auto;
@@ -667,7 +686,6 @@ export default function HomePage() {
 
         .stat-card {
           background: #0b1117;
-          border: 1px solid #171f28;
           border-radius: 13px;
           padding: 20px;
         }
@@ -687,6 +705,8 @@ export default function HomePage() {
         .stat-card .online {
           color: #2bdca7;
         }
+
+        /* MARKETS */
 
         .markets-section {
           max-width: 1180px;
@@ -720,86 +740,93 @@ export default function HomePage() {
           font-weight: 700;
         }
 
-        .view-all:hover {
-          text-decoration: underline;
+        /* COIN LIST */
+
+        .market-list {
+          display: flex;
+          flex-direction: column;
+          gap: 7px;
         }
 
-        .table-wrapper {
-          overflow-x: auto;
+        .coin-row {
+          min-height: 72px;
+          padding: 12px 18px;
           background: #0b1117;
-          border: 1px solid #171f28;
-          border-radius: 14px;
+          border-radius: 13px;
+          display: grid;
+          grid-template-columns:
+            minmax(220px, 2fr)
+            minmax(130px, 1fr)
+            minmax(100px, 0.8fr)
+            minmax(120px, 1fr)
+            78px;
+          align-items: center;
+          gap: 18px;
+          transition: background 0.2s ease,
+            transform 0.2s ease;
         }
 
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          min-width: 720px;
-        }
-
-        th {
-          text-align: left;
-          padding: 17px 20px;
-          color: #687482;
-          font-size: 11px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.7px;
-          border-bottom: 1px solid #171f28;
-        }
-
-        td {
-          padding: 18px 20px;
-          border-bottom: 1px solid #141b23;
-          font-size: 14px;
-        }
-
-        tbody tr:last-child td {
-          border-bottom: none;
-        }
-
-        tbody tr:hover {
+        .coin-row:hover {
           background: #0e151d;
+          transform: translateY(-1px);
         }
 
-        .asset {
+        /* COIN INFO */
+
+        .coin-info {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 13px;
+          min-width: 0;
         }
 
-        .coin-icon {
-          width: 38px;
-          height: 38px;
+        .coin-logo {
+          width: 40px;
+          height: 40px;
           border-radius: 50%;
-          background: #151d26;
-          border: 1px solid #222c37;
-          display: flex;
+          object-fit: cover;
+          flex-shrink: 0;
+        }
+
+        .coin-fallback {
+          display: none;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
           align-items: center;
           justify-content: center;
-          font-size: 17px;
-          font-weight: 800;
+          background: #18212b;
           color: #ffffff;
+          font-size: 16px;
+          font-weight: 800;
+          flex-shrink: 0;
         }
 
-        .asset strong {
+        .coin-name {
+          min-width: 0;
+        }
+
+        .coin-name strong {
           display: block;
           font-size: 14px;
           margin-bottom: 4px;
         }
 
-        .asset span {
+        .coin-name span {
           display: block;
           color: #6f7a87;
           font-size: 12px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
-        .price {
+        .coin-price {
           font-weight: 700;
           white-space: nowrap;
         }
 
-        .change {
+        .coin-change {
           font-weight: 700;
           white-space: nowrap;
         }
@@ -812,10 +839,13 @@ export default function HomePage() {
           color: #ff5f67;
         }
 
-        .market-cap {
+        .coin-market-cap {
           color: #aeb7c2;
           white-space: nowrap;
+          font-size: 14px;
         }
+
+        /* TRADE */
 
         .trade-button {
           display: inline-flex;
@@ -825,7 +855,6 @@ export default function HomePage() {
           padding: 8px 13px;
           border-radius: 8px;
           color: #2bdca7;
-          border: 1px solid #244c42;
           background: #0b1714;
           text-decoration: none;
           font-size: 12px;
@@ -835,12 +864,14 @@ export default function HomePage() {
 
         .trade-button:hover {
           background: #123029;
-          border-color: #2bdca7;
+          color: #48e7b7;
         }
 
         .bottom-space {
           height: 25px;
         }
+
+        /* BOTTOM NAV */
 
         .bottom-nav {
           position: fixed;
@@ -851,7 +882,6 @@ export default function HomePage() {
           width: min(680px, calc(100% - 24px));
           height: 66px;
           background: rgba(11, 17, 23, 0.96);
-          border: 1px solid #202a35;
           border-radius: 17px;
           display: grid;
           grid-template-columns: repeat(5, 1fr);
@@ -886,6 +916,22 @@ export default function HomePage() {
           background: #10231e;
         }
 
+        /* TABLET */
+
+        @media (max-width: 900px) {
+          .coin-row {
+            grid-template-columns:
+              minmax(190px, 2fr)
+              minmax(120px, 1fr)
+              minmax(90px, 0.8fr)
+              75px;
+          }
+
+          .coin-market-cap {
+            display: none;
+          }
+        }
+
         @media (max-width: 800px) {
           .header {
             padding: 0 20px;
@@ -908,9 +954,20 @@ export default function HomePage() {
           .stats {
             grid-template-columns: repeat(2, 1fr);
           }
+
+          .coin-row {
+            grid-template-columns:
+              minmax(170px, 1.5fr)
+              minmax(110px, 1fr)
+              minmax(80px, 0.7fr)
+              70px;
+            gap: 10px;
+          }
         }
 
-        @media (max-width: 520px) {
+        /* MOBILE */
+
+        @media (max-width: 600px) {
           .header {
             height: 68px;
           }
@@ -945,7 +1002,6 @@ export default function HomePage() {
           .stats {
             padding-left: 18px;
             padding-right: 18px;
-            grid-template-columns: 1fr 1fr;
           }
 
           .stat-card {
@@ -964,8 +1020,68 @@ export default function HomePage() {
             font-size: 23px;
           }
 
+          .coin-row {
+            min-height: 68px;
+            padding: 10px 12px;
+            grid-template-columns:
+              minmax(125px, 1.5fr)
+              minmax(85px, 1fr)
+              minmax(65px, 0.7fr)
+              58px;
+            gap: 8px;
+          }
+
+          .coin-logo,
+          .coin-fallback {
+            width: 34px;
+            height: 34px;
+          }
+
+          .coin-info {
+            gap: 9px;
+          }
+
+          .coin-name strong {
+            font-size: 13px;
+          }
+
+          .coin-name span {
+            font-size: 10px;
+          }
+
+          .coin-price {
+            font-size: 12px;
+          }
+
+          .coin-change {
+            font-size: 11px;
+          }
+
+          .trade-button {
+            min-width: 58px;
+            padding: 7px 8px;
+            font-size: 10px;
+          }
+
           .bottom-nav {
             bottom: 10px;
+          }
+        }
+
+        @media (max-width: 420px) {
+          .coin-row {
+            grid-template-columns:
+              minmax(115px, 1.4fr)
+              minmax(78px, 1fr)
+              55px;
+          }
+
+          .coin-change {
+            display: none;
+          }
+
+          .trade-button {
+            min-width: 55px;
           }
         }
       `}</style>

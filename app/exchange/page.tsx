@@ -966,16 +966,14 @@ export default function HomePage() {
           </button>
 
           <button
-            className="nav-item"
-            onClick={() =>
-              router.push("/exchange")
-            }
-          >
-            <Icon type="markets" />
-            <span className="nav-label">
-              Markets
-            </span>
-          </button>
+  className="nav-item"
+  onClick={() => router.push("/trade")}
+>
+  <Icon type="trade" />
+  <span className="nav-label">
+    Trade
+  </span>
+</button>
 
           <button
             className="nav-item"

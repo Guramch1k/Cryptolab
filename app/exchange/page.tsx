@@ -511,7 +511,6 @@ export default function HomePage() {
         </a>
       </nav>
 
-      <style jsx>{`
      <style jsx global>{`
   html,
   body {

@@ -878,9 +878,9 @@ export default function AssetsPage() {
 
         <nav className="bottom-nav">
           <button
-            className="nav-item"
-            onClick={() => router.push("/")}
-          >
+  className="nav-item"
+  onClick={() => router.push("/exchange")}
+>
             <Icon type="home" />
             <span className="nav-label">Home</span>
           </button>
@@ -894,9 +894,9 @@ export default function AssetsPage() {
           </button>
 
           <button
-            className="nav-item"
-            onClick={() => router.push("/exchange")}
-          >
+  className="nav-item"
+  onClick={() => router.push("/exchange")}
+>
             <Icon type="trade" />
             <span className="nav-label">Trade</span>
           </button>

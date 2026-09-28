@@ -1,18 +1,120 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Coin = {
   id: string;
   symbol: string;
   name: string;
-  image: string;
+  icon: string;
   current_price: number;
   price_change_percentage_24h: number;
   market_cap: number;
   market_cap_rank: number;
 };
+
+const coins: Coin[] = [
+  {
+    id: "bitcoin",
+    symbol: "btc",
+    name: "Bitcoin",
+    icon: "₿",
+    current_price: 109842,
+    price_change_percentage_24h: 2.41,
+    market_cap: 2_180_000_000_000,
+    market_cap_rank: 1,
+  },
+  {
+    id: "ethereum",
+    symbol: "eth",
+    name: "Ethereum",
+    icon: "Ξ",
+    current_price: 3942.15,
+    price_change_percentage_24h: 1.87,
+    market_cap: 475_000_000_000,
+    market_cap_rank: 2,
+  },
+  {
+    id: "tether",
+    symbol: "usdt",
+    name: "Tether",
+    icon: "₮",
+    current_price: 1.0,
+    price_change_percentage_24h: 0.01,
+    market_cap: 183_000_000_000,
+    market_cap_rank: 3,
+  },
+  {
+    id: "binancecoin",
+    symbol: "bnb",
+    name: "BNB",
+    icon: "B",
+    current_price: 1024.62,
+    price_change_percentage_24h: 3.18,
+    market_cap: 150_000_000_000,
+    market_cap_rank: 4,
+  },
+  {
+    id: "solana",
+    symbol: "sol",
+    name: "Solana",
+    icon: "S",
+    current_price: 238.74,
+    price_change_percentage_24h: 4.52,
+    market_cap: 115_000_000_000,
+    market_cap_rank: 5,
+  },
+  {
+    id: "usd-coin",
+    symbol: "usdc",
+    name: "USD Coin",
+    icon: "$",
+    current_price: 1.0,
+    price_change_percentage_24h: 0.02,
+    market_cap: 72_000_000_000,
+    market_cap_rank: 6,
+  },
+  {
+    id: "xrp",
+    symbol: "xrp",
+    name: "XRP",
+    icon: "X",
+    current_price: 2.84,
+    price_change_percentage_24h: -1.24,
+    market_cap: 168_000_000_000,
+    market_cap_rank: 7,
+  },
+  {
+    id: "dogecoin",
+    symbol: "doge",
+    name: "Dogecoin",
+    icon: "Ð",
+    current_price: 0.1924,
+    price_change_percentage_24h: 2.73,
+    market_cap: 28_000_000_000,
+    market_cap_rank: 8,
+  },
+  {
+    id: "cardano",
+    symbol: "ada",
+    name: "Cardano",
+    icon: "A",
+    current_price: 0.8642,
+    price_change_percentage_24h: -0.68,
+    market_cap: 30_000_000_000,
+    market_cap_rank: 9,
+  },
+  {
+    id: "avalanche",
+    symbol: "avax",
+    name: "Avalanche",
+    icon: "A",
+    current_price: 36.48,
+    price_change_percentage_24h: 1.92,
+    market_cap: 15_000_000_000,
+    market_cap_rank: 10,
+  },
+];
 
 function Icon({
   type,
@@ -136,117 +238,6 @@ function formatMarketCap(value: number) {
 
 export default function HomePage() {
   const router = useRouter();
-
-  const [coins, setCoins] = useState<Coin[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const CACHE_KEY = "cryptolab_market_data";
-
-    function loadCachedMarkets() {
-      try {
-        const cached = sessionStorage.getItem(CACHE_KEY);
-
-        if (!cached) {
-          return;
-        }
-
-        const parsed: {
-          coins: Coin[];
-          updated: string;
-        } = JSON.parse(cached);
-
-        if (
-          parsed.coins &&
-          Array.isArray(parsed.coins) &&
-          parsed.coins.length > 0 &&
-          !cancelled
-        ) {
-          setCoins(parsed.coins);
-          setLastUpdated(parsed.updated);
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error(
-          "Failed to load cached market data:",
-          error
-        );
-      }
-    }
-
-    async function loadMarkets() {
-      try {
-        const response = await fetch("/api/markets", {
-  cache: "no-store",
-});
-
-        if (!response.ok) {
-          throw new Error("CoinGecko request failed");
-        }
-
-        const data: Coin[] = await response.json();
-
-        if (!Array.isArray(data) || data.length === 0) {
-          throw new Error("Empty CoinGecko response");
-        }
-
-        const updated = new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-
-        if (!cancelled) {
-          setCoins(data);
-          setLastUpdated(updated);
-          setLoading(false);
-
-          try {
-            sessionStorage.setItem(
-              CACHE_KEY,
-              JSON.stringify({
-                coins: data,
-                updated,
-              })
-            );
-          } catch (error) {
-            console.error(
-              "Failed to cache market data:",
-              error
-            );
-          }
-        }
-      } catch (error) {
-        console.error("CoinGecko error:", error);
-
-        if (!cancelled) {
-          /*
-           * ВАЖНО:
-           * Не очищаем coins при ошибке.
-           * Если старые котировки уже есть,
-           * они останутся на экране.
-           */
-          setLoading(false);
-        }
-      }
-    }
-
-    // 1. Сначала показываем последние сохранённые котировки
-    loadCachedMarkets();
-
-    // 2. Затем получаем свежие данные
-    loadMarkets();
-
-    // 3. Автоматическое обновление каждые 30 секунд
-    const interval = setInterval(loadMarkets, 30000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, []);
 
   return (
     <>
@@ -517,8 +508,15 @@ export default function HomePage() {
           width: 34px;
           height: 34px;
           border-radius: 50%;
-          background: #111a1f;
-          object-fit: cover;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          color: #06100d;
+          background: #2bdca7;
+          font-size: 16px;
+          font-weight: 900;
+          box-shadow: 0 0 18px rgba(43,220,167,.08);
         }
 
         .coin-title {
@@ -578,31 +576,6 @@ export default function HomePage() {
         .trade-button:hover {
           background: rgba(43,220,167,.12);
           border-color: rgba(43,220,167,.4);
-        }
-
-        .loading {
-          min-height: 420px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #536169;
-          font-size: 12px;
-        }
-
-        .spinner {
-          width: 18px;
-          height: 18px;
-          margin-right: 10px;
-          border: 2px solid rgba(43,220,167,.15);
-          border-top-color: #2bdca7;
-          border-radius: 50%;
-          animation: spin .7s linear infinite;
-        }
-
-        @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
         }
 
         .bottom-nav {
@@ -759,6 +732,7 @@ export default function HomePage() {
           .coin-logo {
             width: 30px;
             height: 30px;
+            font-size: 14px;
           }
 
           .coin-main {
@@ -835,9 +809,7 @@ export default function HomePage() {
             </div>
 
             <div className="updated">
-              {lastUpdated
-                ? `Updated ${lastUpdated}`
-                : "Updating prices..."}
+              Market snapshot
             </div>
           </section>
 
@@ -848,7 +820,7 @@ export default function HomePage() {
               </div>
 
               <div className="stat-value">
-                {coins.length || 10}
+                {coins.length}
               </div>
             </div>
 
@@ -858,17 +830,17 @@ export default function HomePage() {
               </div>
 
               <div className="stat-value">
-                Live
+                Demo
               </div>
             </div>
 
             <div className="stat">
               <div className="stat-label">
-                Update
+                Status
               </div>
 
               <div className="stat-value">
-                30 sec
+                Online
               </div>
             </div>
 
@@ -886,7 +858,7 @@ export default function HomePage() {
           <section>
             <div className="section-title">
               <h2>Markets</h2>
-              <span>Trade available assets</span>
+              <span>Available assets</span>
             </div>
 
             <div className="market">
@@ -899,128 +871,141 @@ export default function HomePage() {
                 <div />
               </div>
 
-              {loading ? (
-                <div className="loading">
-                  <span className="spinner" />
-                  Loading market data...
-                </div>
-              ) : coins.length === 0 ? (
-                <div className="loading">
-                  Market data temporarily unavailable
-                </div>
-              ) : (
-                coins.map((coin) => {
-                  const positive =
-                    coin.price_change_percentage_24h >= 0;
+              {coins.map((coin) => {
+                const positive =
+                  coin.price_change_percentage_24h >= 0;
 
-                  return (
-                    <div
-                      className="coin-row"
-                      key={coin.id}
-                    >
-                      <div className="rank">
-                        {coin.market_cap_rank}
+                return (
+                  <div
+                    className="coin-row"
+                    key={coin.id}
+                  >
+                    <div className="rank">
+                      {coin.market_cap_rank}
+                    </div>
+
+                    <div className="coin-name">
+                      <div className="coin-logo">
+                        {coin.icon}
                       </div>
 
-                      <div className="coin-name">
-                        <img
-                          className="coin-logo"
-                          src={coin.image}
-                          alt={coin.name}
-                        />
+                      <div className="coin-title">
+                        <div className="coin-main">
+                          {coin.name}
+                        </div>
 
-                        <div className="coin-title">
-                          <div className="coin-main">
-                            {coin.name}
-                          </div>
-
-                          <div className="coin-symbol">
-                            {coin.symbol}/USDT
-                          </div>
+                        <div className="coin-symbol">
+                          {coin.symbol}/USDT
                         </div>
                       </div>
-
-                      <div className="price">
-                        {formatPrice(coin.current_price)}
-                      </div>
-
-                      <div
-                        className={`change ${
-                          positive
-                            ? "positive"
-                            : "negative"
-                        }`}
-                      >
-                        {positive ? "+" : ""}
-                        {coin.price_change_percentage_24h.toFixed(2)}
-                        %
-                      </div>
-
-                      <div className="market-cap">
-                        {formatMarketCap(coin.market_cap)}
-                      </div>
-
-                      <div>
-                        <button
-                          className="trade-button"
-                          onClick={() =>
-                            router.push(
-                              `/exchange?symbol=${coin.symbol.toUpperCase()}`
-                            )
-                          }
-                        >
-                          Trade
-                        </button>
-                      </div>
                     </div>
-                  );
-                })
-              )}
+
+                    <div className="price">
+                      {formatPrice(
+                        coin.current_price
+                      )}
+                    </div>
+
+                    <div
+                      className={`change ${
+                        positive
+                          ? "positive"
+                          : "negative"
+                      }`}
+                    >
+                      {positive ? "+" : ""}
+                      {coin.price_change_percentage_24h.toFixed(
+                        2
+                      )}
+                      %
+                    </div>
+
+                    <div className="market-cap">
+                      {formatMarketCap(
+                        coin.market_cap
+                      )}
+                    </div>
+
+                    <div>
+                      <button
+                        className="trade-button"
+                        onClick={() =>
+                          router.push(
+                            `/exchange?symbol=${coin.symbol.toUpperCase()}`
+                          )
+                        }
+                      >
+                        Trade
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </section>
         </div>
 
         <nav className="bottom-nav">
-  <button
-    className="nav-item active"
-    onClick={() => router.push("/exchange")}
-  >
-    <Icon type="home" />
-    <span className="nav-label">Home</span>
-  </button>
+          <button
+            className="nav-item active"
+            onClick={() =>
+              router.push("/exchange")
+            }
+          >
+            <Icon type="home" />
+            <span className="nav-label">
+              Home
+            </span>
+          </button>
 
-  <button
-    className="nav-item"
-    onClick={() => router.push("/exchange")}
-  >
-    <Icon type="markets" />
-    <span className="nav-label">Markets</span>
-  </button>
+          <button
+            className="nav-item"
+            onClick={() =>
+              router.push("/exchange")
+            }
+          >
+            <Icon type="markets" />
+            <span className="nav-label">
+              Markets
+            </span>
+          </button>
 
-  <button
-    className="nav-item"
-    onClick={() => router.push("/exchange")}
-  >
-    <Icon type="trade" />
-    <span className="nav-label">Trade</span>
-  </button>
+          <button
+            className="nav-item"
+            onClick={() =>
+              router.push("/exchange")
+            }
+          >
+            <Icon type="trade" />
+            <span className="nav-label">
+              Trade
+            </span>
+          </button>
 
-  <button
-    className="nav-item"
-    onClick={() => router.push("/futures")}
-  >
-    <Icon type="futures" />
-    <span className="nav-label">Futures</span>
-  </button>
+          <button
+            className="nav-item"
+            onClick={() =>
+              router.push("/futures")
+            }
+          >
+            <Icon type="futures" />
+            <span className="nav-label">
+              Futures
+            </span>
+          </button>
 
-  <button
-    className="nav-item"
-    onClick={() => router.push("/assets")}
-  >
-    <Icon type="assets" />
-    <span className="nav-label">Assets</span>
-  </button>
-</nav>
+          <button
+            className="nav-item"
+            onClick={() =>
+              router.push("/assets")
+            }
+          >
+            <Icon type="assets" />
+            <span className="nav-label">
+              Assets
+            </span>
+          </button>
+        </nav>
       </main>
     </>
   );

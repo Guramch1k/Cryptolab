@@ -14,8 +14,6 @@ type Coin = {
   market_cap_rank: number;
 };
 
-const GREEN = "#2bdca7";
-
 function Icon({
   type,
   size = 22,
@@ -274,20 +272,46 @@ export default function Home() {
           letter-spacing: -1px;
         }
 
-        .status {
+        .auth-buttons {
           display: flex;
           align-items: center;
-          gap: 7px;
-          color: #718083;
-          font-size: 11px;
+          gap: 10px;
         }
 
-        .status-dot {
-          width: 7px;
-          height: 7px;
-          border-radius: 50%;
+        .login-button,
+        .signup-button {
+          height: 38px;
+          padding: 0 17px;
+          border-radius: 10px;
+          font-size: 12px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all .2s ease;
+        }
+
+        .login-button {
+          color: #cbd5d2;
+          background: transparent;
+          border: 1px solid rgba(255,255,255,.12);
+        }
+
+        .login-button:hover {
+          color: #2bdca7;
+          border-color: rgba(43,220,167,.35);
+          background: rgba(43,220,167,.04);
+        }
+
+        .signup-button {
+          color: #06100d;
           background: #2bdca7;
-          box-shadow: 0 0 10px rgba(43,220,167,.7);
+          border: 1px solid #2bdca7;
+          box-shadow: 0 0 20px rgba(43,220,167,.12);
+        }
+
+        .signup-button:hover {
+          background: #45e5b5;
+          border-color: #45e5b5;
+          box-shadow: 0 0 28px rgba(43,220,167,.22);
         }
 
         .container {
@@ -617,8 +641,15 @@ export default function Home() {
             font-size: 16px;
           }
 
-          .status {
-            font-size: 9px;
+          .auth-buttons {
+            gap: 6px;
+          }
+
+          .login-button,
+          .signup-button {
+            height: 34px;
+            padding: 0 11px;
+            font-size: 10px;
           }
 
           .container {
@@ -716,9 +747,20 @@ export default function Home() {
             <div className="brand-text">CryptoLab</div>
           </div>
 
-          <div className="status">
-            <span className="status-dot" />
-            Markets Live
+          <div className="auth-buttons">
+            <button
+              className="login-button"
+              onClick={() => router.push("/login")}
+            >
+              Log In
+            </button>
+
+            <button
+              className="signup-button"
+              onClick={() => router.push("/signup")}
+            >
+              Sign Up
+            </button>
           </div>
         </header>
 

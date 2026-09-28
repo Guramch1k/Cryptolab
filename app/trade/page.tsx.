@@ -1,1 +1,1397 @@
+"use client";
 
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+type Coin = {
+  symbol: string;
+  name: string;
+  icon: string;
+  price: number;
+  change: number;
+  high: number;
+  low: number;
+  volume: string;
+};
+
+const COINS: Record<string, Coin> = {
+  BTC: {
+    symbol: "BTC",
+    name: "Bitcoin",
+    icon: "₿",
+    price: 109842.32,
+    change: 2.41,
+    high: 111240.82,
+    low: 106940.12,
+    volume: "42.8B",
+  },
+  ETH: {
+    symbol: "ETH",
+    name: "Ethereum",
+    icon: "Ξ",
+    price: 3942.15,
+    change: 1.87,
+    high: 4012.42,
+    low: 3821.18,
+    volume: "21.4B",
+  },
+  BNB: {
+    symbol: "BNB",
+    name: "BNB",
+    icon: "◆",
+    price: 1024.62,
+    change: 3.18,
+    high: 1041.32,
+    low: 986.45,
+    volume: "4.9B",
+  },
+  SOL: {
+    symbol: "SOL",
+    name: "Solana",
+    icon: "S",
+    price: 238.74,
+    change: 4.52,
+    high: 244.18,
+    low: 224.31,
+    volume: "8.7B",
+  },
+  XRP: {
+    symbol: "XRP",
+    name: "XRP",
+    icon: "X",
+    price: 2.84,
+    change: -1.24,
+    high: 2.96,
+    low: 2.71,
+    volume: "6.2B",
+  },
+  USDT: {
+    symbol: "USDT",
+    name: "Tether",
+    icon: "₮",
+    price: 1,
+    change: 0.01,
+    high: 1.001,
+    low: 0.998,
+    volume: "94.2B",
+  },
+};
+
+const asks = [
+  ["109982.42", "0.284"],
+  ["109941.18", "0.517"],
+  ["109912.30", "0.193"],
+  ["109884.72", "0.741"],
+  ["109861.44", "0.362"],
+];
+
+const bids = [
+  ["109842.32", "0.428"],
+  ["109811.90", "0.621"],
+  ["109784.16", "0.238"],
+  ["109752.64", "0.813"],
+  ["109721.28", "0.394"],
+];
+
+const recentTrades = [
+  ["109842.32", "0.428", "22:41:08"],
+  ["109821.18", "0.156", "22:40:51"],
+  ["109804.72", "0.382", "22:40:32"],
+  ["109791.42", "0.214", "22:40:14"],
+  ["109774.10", "0.521", "22:39:58"],
+];
+
+function formatPrice(value: number) {
+  if (value < 10) return value.toFixed(4);
+  if (value < 1000) return value.toFixed(2);
+  return value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+export default function TradePage() {
+  const router = useRouter();
+
+  const [symbol, setSymbol] = useState("BTC");
+  const [side, setSide] = useState<"buy" | "sell">("buy");
+  const [orderType, setOrderType] = useState<"limit" | "market">("limit");
+  const [price, setPrice] = useState("");
+  const [amount, setAmount] = useState("");
+  const [percentage, setPercentage] = useState(0);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlSymbol = params.get("symbol")?.toUpperCase();
+
+    if (urlSymbol && COINS[urlSymbol]) {
+      setSymbol(urlSymbol);
+    }
+  }, []);
+
+  const coin = COINS[symbol];
+
+  useEffect(() => {
+    setPrice(coin.price.toString());
+    setAmount("");
+    setPercentage(0);
+    setMessage("");
+  }, [symbol, coin.price]);
+
+  const total = useMemo(() => {
+    const p = Number(price) || 0;
+    const a = Number(amount) || 0;
+    return p * a;
+  }, [price, amount]);
+
+  function changePair(value: string) {
+    setSymbol(value);
+    router.push(`/trade?symbol=${value}`);
+  }
+
+  function setPercent(value: number) {
+    setPercentage(value);
+
+    const balance = side === "buy" ? 12540 : 0.084;
+
+    if (side === "buy") {
+      const calculatedAmount =
+        ((balance * value) / 100) / (Number(price) || coin.price);
+
+      setAmount(calculatedAmount.toFixed(6));
+    } else {
+      const calculatedAmount = (balance * value) / 100;
+      setAmount(calculatedAmount.toFixed(6));
+    }
+  }
+
+  function submitOrder() {
+    setMessage(
+      `${side === "buy" ? "Buy" : "Sell"} order submitted — Demo Mode`
+    );
+
+    setTimeout(() => {
+      setMessage("");
+    }, 3500);
+  }
+
+  return (
+    <main className="trade-page">
+      <style jsx global>{`
+        * {
+          box-sizing: border-box;
+        }
+
+        html,
+        body {
+          margin: 0;
+          padding: 0;
+          background: #05080d;
+          color: #f5f7fa;
+          font-family:
+            Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+            "Segoe UI", sans-serif;
+        }
+
+        button,
+        input,
+        select {
+          font: inherit;
+        }
+
+        button {
+          cursor: pointer;
+        }
+
+        .trade-page {
+          min-height: 100vh;
+          background:
+            radial-gradient(
+              circle at 50% -20%,
+              rgba(39, 92, 255, 0.12),
+              transparent 34%
+            ),
+            #05080d;
+          padding-bottom: 82px;
+        }
+
+        .topbar {
+          height: 68px;
+          border-bottom: 1px solid #171d27;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 32px;
+          background: rgba(5, 8, 13, 0.92);
+          backdrop-filter: blur(18px);
+          position: sticky;
+          top: 0;
+          z-index: 20;
+        }
+
+        .brand {
+          display: flex;
+          align-items: center;
+          gap: 11px;
+          font-size: 21px;
+          font-weight: 800;
+          letter-spacing: -0.5px;
+        }
+
+        .brand-mark {
+          width: 31px;
+          height: 31px;
+          border-radius: 9px;
+          display: grid;
+          place-items: center;
+          background: linear-gradient(135deg, #ffffff, #788291);
+          color: #05080d;
+          font-size: 15px;
+          font-weight: 900;
+        }
+
+        .top-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .login-btn,
+        .signup-btn {
+          height: 38px;
+          border-radius: 9px;
+          padding: 0 16px;
+          border: 1px solid #242c38;
+          background: #0c1118;
+          color: #e8ebef;
+        }
+
+        .signup-btn {
+          background: #f4f6f8;
+          color: #070a0e;
+          border-color: #f4f6f8;
+          font-weight: 700;
+        }
+
+        .terminal {
+          max-width: 1500px;
+          margin: 0 auto;
+          padding: 18px;
+        }
+
+        .pairbar {
+          border: 1px solid #1a212c;
+          background: #090e15;
+          border-radius: 13px;
+          min-height: 76px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 13px 17px;
+          margin-bottom: 12px;
+        }
+
+        .pair-left {
+          display: flex;
+          align-items: center;
+          gap: 15px;
+        }
+
+        .coin-icon {
+          width: 42px;
+          height: 42px;
+          border-radius: 50%;
+          background: #151c27;
+          border: 1px solid #283241;
+          display: grid;
+          place-items: center;
+          font-size: 20px;
+          font-weight: 800;
+        }
+
+        .pair-select {
+          background: transparent;
+          border: 0;
+          outline: 0;
+          color: white;
+          font-size: 20px;
+          font-weight: 800;
+          appearance: auto;
+        }
+
+        .pair-select option {
+          background: #0b1017;
+          color: white;
+        }
+
+        .pair-name {
+          color: #798493;
+          font-size: 12px;
+          margin-top: 3px;
+        }
+
+        .pair-price {
+          font-size: 22px;
+          font-weight: 800;
+          letter-spacing: -0.4px;
+        }
+
+        .positive {
+          color: #35d07f;
+        }
+
+        .negative {
+          color: #ff5d6c;
+        }
+
+        .pair-stats {
+          display: flex;
+          gap: 30px;
+          align-items: center;
+        }
+
+        .stat-label {
+          color: #6e7886;
+          font-size: 11px;
+          margin-bottom: 5px;
+        }
+
+        .stat-value {
+          font-size: 13px;
+          font-weight: 600;
+        }
+
+        .main-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1.65fr) 290px 330px;
+          gap: 12px;
+        }
+
+        .panel {
+          border: 1px solid #1a212c;
+          background: #090e15;
+          border-radius: 13px;
+          overflow: hidden;
+        }
+
+        .panel-title {
+          height: 47px;
+          display: flex;
+          align-items: center;
+          padding: 0 15px;
+          border-bottom: 1px solid #1a212c;
+          font-size: 13px;
+          font-weight: 700;
+        }
+
+        .chart-toolbar {
+          height: 46px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 14px;
+          border-bottom: 1px solid #171e29;
+        }
+
+        .intervals {
+          display: flex;
+          gap: 4px;
+        }
+
+        .interval {
+          border: 0;
+          background: transparent;
+          color: #697482;
+          padding: 5px 8px;
+          border-radius: 6px;
+          font-size: 11px;
+        }
+
+        .interval.active,
+        .interval:hover {
+          background: #151c26;
+          color: #fff;
+        }
+
+        .chart {
+          height: 355px;
+          padding: 10px;
+          position: relative;
+        }
+
+        .chart svg {
+          width: 100%;
+          height: 100%;
+          display: block;
+        }
+
+        .chart-price {
+          position: absolute;
+          right: 16px;
+          top: 17px;
+          font-size: 11px;
+          color: #8d98a6;
+        }
+
+        .chart-bottom {
+          display: flex;
+          justify-content: space-between;
+          padding: 0 16px 13px;
+          color: #697482;
+          font-size: 10px;
+        }
+
+        .orderbook {
+          min-height: 448px;
+        }
+
+        .book-header {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          padding: 10px 14px 7px;
+          color: #606b79;
+          font-size: 10px;
+        }
+
+        .book-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          padding: 6px 14px;
+          font-size: 11px;
+          position: relative;
+        }
+
+        .book-row span:last-child {
+          text-align: right;
+          color: #adb5bf;
+        }
+
+        .ask {
+          color: #ff6c79;
+        }
+
+        .bid {
+          color: #39d485;
+        }
+
+        .spread {
+          margin: 6px 14px;
+          padding: 9px 0;
+          border-top: 1px solid #171e28;
+          border-bottom: 1px solid #171e28;
+          display: flex;
+          justify-content: space-between;
+          color: #7c8795;
+          font-size: 10px;
+        }
+
+        .spread strong {
+          color: white;
+        }
+
+        .order-panel {
+          min-height: 448px;
+        }
+
+        .order-tabs {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          border-bottom: 1px solid #1a212c;
+        }
+
+        .order-tab {
+          height: 45px;
+          border: 0;
+          background: transparent;
+          color: #7c8795;
+          font-weight: 700;
+          border-bottom: 2px solid transparent;
+        }
+
+        .order-tab.buy-active {
+          color: #35d07f;
+          border-bottom-color: #35d07f;
+        }
+
+        .order-tab.sell-active {
+          color: #ff5d6c;
+          border-bottom-color: #ff5d6c;
+        }
+
+        .order-content {
+          padding: 14px;
+        }
+
+        .type-tabs {
+          display: flex;
+          gap: 18px;
+          margin-bottom: 15px;
+        }
+
+        .type-tab {
+          border: 0;
+          background: transparent;
+          color: #687382;
+          padding: 0 0 6px;
+          font-size: 11px;
+          border-bottom: 1px solid transparent;
+        }
+
+        .type-tab.active {
+          color: #fff;
+          border-bottom-color: #fff;
+        }
+
+        .field-label {
+          color: #687382;
+          font-size: 10px;
+          margin-bottom: 6px;
+        }
+
+        .input-wrap {
+          height: 39px;
+          background: #0d131b;
+          border: 1px solid #202936;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          padding: 0 10px;
+          margin-bottom: 11px;
+        }
+
+        .input-wrap:focus-within {
+          border-color: #465365;
+        }
+
+        .input-wrap input {
+          flex: 1;
+          min-width: 0;
+          border: 0;
+          outline: 0;
+          background: transparent;
+          color: #fff;
+          font-size: 12px;
+        }
+
+        .input-unit {
+          color: #6f7a88;
+          font-size: 10px;
+        }
+
+        .percent-row {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 5px;
+          margin: 1px 0 14px;
+        }
+
+        .percent-btn {
+          height: 25px;
+          border: 1px solid #202936;
+          background: #0c1219;
+          color: #697482;
+          border-radius: 5px;
+          font-size: 9px;
+        }
+
+        .percent-btn.active {
+          border-color: #687585;
+          color: #fff;
+        }
+
+        .total-row {
+          display: flex;
+          justify-content: space-between;
+          margin: 7px 0 17px;
+          color: #717c89;
+          font-size: 10px;
+        }
+
+        .total-row strong {
+          color: #e8ebef;
+          font-size: 11px;
+        }
+
+        .submit-btn {
+          width: 100%;
+          height: 43px;
+          border: 0;
+          border-radius: 8px;
+          font-weight: 800;
+          font-size: 12px;
+        }
+
+        .submit-buy {
+          background: #2dcc79;
+          color: #04100a;
+        }
+
+        .submit-sell {
+          background: #ef5665;
+          color: white;
+        }
+
+        .balance {
+          margin-top: 13px;
+          padding-top: 12px;
+          border-top: 1px solid #171e28;
+          display: flex;
+          justify-content: space-between;
+          color: #6c7785;
+          font-size: 10px;
+        }
+
+        .balance strong {
+          color: #c9d0d8;
+        }
+
+        .message {
+          margin-top: 10px;
+          padding: 8px;
+          background: rgba(45, 204, 121, 0.08);
+          border: 1px solid rgba(45, 204, 121, 0.2);
+          border-radius: 7px;
+          color: #4ade91;
+          text-align: center;
+          font-size: 10px;
+        }
+
+        .bottom-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+          margin-top: 12px;
+        }
+
+        .bottom-panel {
+          min-height: 205px;
+        }
+
+        .empty-state {
+          height: 155px;
+          display: grid;
+          place-items: center;
+          color: #586371;
+          font-size: 11px;
+        }
+
+        .trades-table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+
+        .trades-table th {
+          color: #626d7b;
+          font-size: 9px;
+          font-weight: 500;
+          text-align: left;
+          padding: 11px 15px;
+        }
+
+        .trades-table td {
+          padding: 7px 15px;
+          font-size: 10px;
+          border-top: 1px solid #111820;
+        }
+
+        .trades-table td:nth-child(2),
+        .trades-table td:nth-child(3) {
+          color: #8993a0;
+        }
+
+        .bottom-nav {
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 68px;
+          background: rgba(7, 10, 15, 0.96);
+          backdrop-filter: blur(20px);
+          border-top: 1px solid #1a212c;
+          display: flex;
+          justify-content: center;
+          z-index: 30;
+        }
+
+        .nav-inner {
+          width: 100%;
+          max-width: 700px;
+          display: grid;
+          grid-template-columns: repeat(5, 1fr);
+        }
+
+        .nav-item {
+          border: 0;
+          background: transparent;
+          color: #66717f;
+          font-size: 10px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 5px;
+        }
+
+        .nav-icon {
+          font-size: 17px;
+        }
+
+        .nav-item.active {
+          color: #fff;
+        }
+
+        @media (max-width: 1100px) {
+          .main-grid {
+            grid-template-columns: minmax(0, 1fr) 280px;
+          }
+
+          .order-panel {
+            grid-column: 1 / -1;
+          }
+
+          .order-panel .order-content {
+            max-width: 600px;
+          }
+
+          .order-panel {
+            min-height: auto;
+          }
+        }
+
+        @media (max-width: 760px) {
+          .topbar {
+            padding: 0 15px;
+            height: 60px;
+          }
+
+          .brand {
+            font-size: 18px;
+          }
+
+          .login-btn,
+          .signup-btn {
+            padding: 0 11px;
+            height: 34px;
+            font-size: 11px;
+          }
+
+          .terminal {
+            padding: 9px;
+          }
+
+          .pairbar {
+            display: block;
+            padding: 13px;
+          }
+
+          .pair-left {
+            margin-bottom: 14px;
+          }
+
+          .pair-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+          }
+
+          .main-grid {
+            display: flex;
+            flex-direction: column;
+          }
+
+          .chart {
+            height: 300px;
+          }
+
+          .orderbook {
+            min-height: auto;
+          }
+
+          .order-panel {
+            min-height: auto;
+          }
+
+          .bottom-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .bottom-panel {
+            min-height: 180px;
+          }
+
+          .trade-page {
+            padding-bottom: 74px;
+          }
+        }
+
+        @media (max-width: 430px) {
+          .pair-price {
+            font-size: 19px;
+          }
+
+          .pair-stats {
+            grid-template-columns: repeat(3, 1fr);
+          }
+
+          .stat-label {
+            font-size: 9px;
+          }
+
+          .stat-value {
+            font-size: 11px;
+          }
+
+          .chart {
+            height: 260px;
+          }
+
+          .top-actions {
+            gap: 5px;
+          }
+        }
+      `}</style>
+
+      {/* HEADER */}
+      <header className="topbar">
+        <div className="brand">
+          <div className="brand-mark">C</div>
+          CryptoLab
+        </div>
+
+        <div className="top-actions">
+          <button
+            className="login-btn"
+            onClick={() => router.push("/login")}
+          >
+            Log In
+          </button>
+
+          <button
+            className="signup-btn"
+            onClick={() => router.push("/signup")}
+          >
+            Sign Up
+          </button>
+        </div>
+      </header>
+
+      <section className="terminal">
+        {/* PAIR BAR */}
+        <div className="pairbar">
+          <div className="pair-left">
+            <div className="coin-icon">{coin.icon}</div>
+
+            <div>
+              <select
+                className="pair-select"
+                value={symbol}
+                onChange={(e) => changePair(e.target.value)}
+              >
+                {Object.values(COINS).map((item) => (
+                  <option key={item.symbol} value={item.symbol}>
+                    {item.symbol}/USDT
+                  </option>
+                ))}
+              </select>
+
+              <div className="pair-name">
+                {coin.name} / Tether USD
+              </div>
+            </div>
+
+            <div>
+              <div className="pair-price">
+                ${formatPrice(coin.price)}
+              </div>
+
+              <div
+                className={
+                  coin.change >= 0 ? "positive" : "negative"
+                }
+                style={{ fontSize: 11, marginTop: 3 }}
+              >
+                {coin.change >= 0 ? "+" : ""}
+                {coin.change}%
+              </div>
+            </div>
+          </div>
+
+          <div className="pair-stats">
+            <div>
+              <div className="stat-label">24h High</div>
+              <div className="stat-value">
+                ${formatPrice(coin.high)}
+              </div>
+            </div>
+
+            <div>
+              <div className="stat-label">24h Low</div>
+              <div className="stat-value">
+                ${formatPrice(coin.low)}
+              </div>
+            </div>
+
+            <div>
+              <div className="stat-label">24h Volume</div>
+              <div className="stat-value">${coin.volume}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="main-grid">
+          {/* CHART */}
+          <section className="panel">
+            <div className="chart-toolbar">
+              <div className="intervals">
+                {["1m", "5m", "15m", "1H", "4H", "1D"].map(
+                  (interval, index) => (
+                    <button
+                      key={interval}
+                      className={
+                        index === 2
+                          ? "interval active"
+                          : "interval"
+                      }
+                    >
+                      {interval}
+                    </button>
+                  )
+                )}
+              </div>
+
+              <div style={{ color: "#687382", fontSize: 10 }}>
+                Demo Chart
+              </div>
+            </div>
+
+            <div className="chart">
+              <div className="chart-price">
+                {formatPrice(coin.price)}
+              </div>
+
+              <svg
+                viewBox="0 0 900 300"
+                preserveAspectRatio="none"
+              >
+                {/* GRID */}
+                {[40, 90, 140, 190, 240].map((y) => (
+                  <line
+                    key={y}
+                    x1="0"
+                    x2="900"
+                    y1={y}
+                    y2={y}
+                    stroke="#171f2a"
+                    strokeWidth="1"
+                  />
+                ))}
+
+                {[100, 250, 400, 550, 700, 850].map((x) => (
+                  <line
+                    key={x}
+                    x1={x}
+                    x2={x}
+                    y1="0"
+                    y2="300"
+                    stroke="#111923"
+                    strokeWidth="1"
+                  />
+                ))}
+
+                <defs>
+                  <linearGradient
+                    id="chartFill"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop
+                      offset="0%"
+                      stopColor="#35d07f"
+                      stopOpacity="0.18"
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor="#35d07f"
+                      stopOpacity="0"
+                    />
+                  </linearGradient>
+                </defs>
+
+                <path
+                  d="
+                    M0 230
+                    L35 214
+                    L70 220
+                    L105 188
+                    L140 201
+                    L175 164
+                    L210 175
+                    L245 145
+                    L280 158
+                    L315 126
+                    L350 140
+                    L385 111
+                    L420 126
+                    L455 94
+                    L490 108
+                    L525 76
+                    L560 90
+                    L595 66
+                    L630 81
+                    L665 55
+                    L700 69
+                    L735 48
+                    L770 60
+                    L805 38
+                    L840 52
+                    L875 32
+                    L900 42
+                    L900 300
+                    L0 300
+                    Z
+                  "
+                  fill="url(#chartFill)"
+                />
+
+                <path
+                  d="
+                    M0 230
+                    L35 214
+                    L70 220
+                    L105 188
+                    L140 201
+                    L175 164
+                    L210 175
+                    L245 145
+                    L280 158
+                    L315 126
+                    L350 140
+                    L385 111
+                    L420 126
+                    L455 94
+                    L490 108
+                    L525 76
+                    L560 90
+                    L595 66
+                    L630 81
+                    L665 55
+                    L700 69
+                    L735 48
+                    L770 60
+                    L805 38
+                    L840 52
+                    L875 32
+                    L900 42
+                  "
+                  fill="none"
+                  stroke="#35d07f"
+                  strokeWidth="2"
+                  vectorEffect="non-scaling-stroke"
+                />
+
+                <circle
+                  cx="900"
+                  cy="42"
+                  r="4"
+                  fill="#35d07f"
+                />
+              </svg>
+            </div>
+
+            <div className="chart-bottom">
+              <span>18:00</span>
+              <span>19:00</span>
+              <span>20:00</span>
+              <span>21:00</span>
+              <span>22:00</span>
+            </div>
+          </section>
+
+          {/* ORDER BOOK */}
+          <section className="panel orderbook">
+            <div className="panel-title">Order Book</div>
+
+            <div className="book-header">
+              <span>Price (USDT)</span>
+              <span style={{ textAlign: "right" }}>
+                Amount ({coin.symbol})
+              </span>
+            </div>
+
+            {asks.map(([priceValue, amountValue]) => (
+              <div className="book-row" key={priceValue}>
+                <span className="ask">{priceValue}</span>
+                <span>{amountValue}</span>
+              </div>
+            ))}
+
+            <div className="spread">
+              <span>Spread</span>
+              <strong>$12.10</strong>
+            </div>
+
+            {bids.map(([priceValue, amountValue]) => (
+              <div className="book-row" key={priceValue}>
+                <span className="bid">{priceValue}</span>
+                <span>{amountValue}</span>
+              </div>
+            ))}
+          </section>
+
+          {/* ORDER FORM */}
+          <section className="panel order-panel">
+            <div className="order-tabs">
+              <button
+                className={
+                  side === "buy"
+                    ? "order-tab buy-active"
+                    : "order-tab"
+                }
+                onClick={() => {
+                  setSide("buy");
+                  setPercentage(0);
+                }}
+              >
+                Buy
+              </button>
+
+              <button
+                className={
+                  side === "sell"
+                    ? "order-tab sell-active"
+                    : "order-tab"
+                }
+                onClick={() => {
+                  setSide("sell");
+                  setPercentage(0);
+                }}
+              >
+                Sell
+              </button>
+            </div>
+
+            <div className="order-content">
+              <div className="type-tabs">
+                <button
+                  className={
+                    orderType === "limit"
+                      ? "type-tab active"
+                      : "type-tab"
+                  }
+                  onClick={() => setOrderType("limit")}
+                >
+                  Limit
+                </button>
+
+                <button
+                  className={
+                    orderType === "market"
+                      ? "type-tab active"
+                      : "type-tab"
+                  }
+                  onClick={() => setOrderType("market")}
+                >
+                  Market
+                </button>
+              </div>
+
+              {orderType === "limit" && (
+                <>
+                  <div className="field-label">Price</div>
+
+                  <div className="input-wrap">
+                    <input
+                      type="number"
+                      value={price}
+                      onChange={(e) => setPrice(e.target.value)}
+                    />
+
+                    <span className="input-unit">USDT</span>
+                  </div>
+                </>
+              )}
+
+              <div className="field-label">Amount</div>
+
+              <div className="input-wrap">
+                <input
+                  type="number"
+                  placeholder="0.00"
+                  value={amount}
+                  onChange={(e) => {
+                    setAmount(e.target.value);
+                    setPercentage(0);
+                  }}
+                />
+
+                <span className="input-unit">
+                  {coin.symbol}
+                </span>
+              </div>
+
+              <div className="percent-row">
+                {[25, 50, 75, 100].map((value) => (
+                  <button
+                    key={value}
+                    className={
+                      percentage === value
+                        ? "percent-btn active"
+                        : "percent-btn"
+                    }
+                    onClick={() => setPercent(value)}
+                  >
+                    {value}%
+                  </button>
+                ))}
+              </div>
+
+              <div className="field-label">Total</div>
+
+              <div className="input-wrap">
+                <input
+                  readOnly
+                  value={
+                    total
+                      ? total.toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })
+                      : ""
+                  }
+                  placeholder="0.00"
+                />
+
+                <span className="input-unit">USDT</span>
+              </div>
+
+              <div className="total-row">
+                <span>Available</span>
+
+                <strong>
+                  {side === "buy"
+                    ? "12,540.00 USDT"
+                    : `0.084000 ${coin.symbol}`}
+                </strong>
+              </div>
+
+              <button
+                className={
+                  side === "buy"
+                    ? "submit-btn submit-buy"
+                    : "submit-btn submit-sell"
+                }
+                onClick={submitOrder}
+              >
+                {side === "buy"
+                  ? `Buy ${coin.symbol}`
+                  : `Sell ${coin.symbol}`}
+              </button>
+
+              {message && (
+                <div className="message">{message}</div>
+              )}
+
+              <div className="balance">
+                <span>Trading fee</span>
+                <strong>0.10%</strong>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        {/* BOTTOM */}
+        <div className="bottom-grid">
+          <section className="panel bottom-panel">
+            <div className="panel-title">Open Orders</div>
+
+            <div className="empty-state">
+              No open orders
+            </div>
+          </section>
+
+          <section className="panel bottom-panel">
+            <div className="panel-title">Recent Trades</div>
+
+            <table className="trades-table">
+              <thead>
+                <tr>
+                  <th>Price</th>
+                  <th>Amount</th>
+                  <th>Time</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {recentTrades.map(
+                  ([tradePrice, tradeAmount, time]) => (
+                    <tr key={`${tradePrice}-${time}`}>
+                      <td
+                        className={
+                          Number(tradePrice) >
+                          coin.price
+                            ? "positive"
+                            : "negative"
+                        }
+                      >
+                        {tradePrice}
+                      </td>
+
+                      <td>{tradeAmount}</td>
+
+                      <td>{time}</td>
+                    </tr>
+                  )
+                )}
+              </tbody>
+            </table>
+          </section>
+        </div>
+      </section>
+
+      {/* BOTTOM NAVIGATION */}
+      <nav className="bottom-nav">
+        <div className="nav-inner">
+          <button
+            className="nav-item"
+            onClick={() => router.push("/exchange")}
+          >
+            <span className="nav-icon">⌂</span>
+            Home
+          </button>
+
+          <button
+            className="nav-item"
+            onClick={() => router.push("/exchange")}
+          >
+            <span className="nav-icon">◈</span>
+            Markets
+          </button>
+
+          <button className="nav-item active">
+            <span className="nav-icon">⇄</span>
+            Trade
+          </button>
+
+          <button
+            className="nav-item"
+            onClick={() => router.push("/futures")}
+          >
+            <span className="nav-icon">◒</span>
+            Futures
+          </button>
+
+          <button
+            className="nav-item"
+            onClick={() => router.push("/assets")}
+          >
+            <span className="nav-icon">▣</span>
+            Assets
+          </button>
+        </div>
+      </nav>
+    </main>
+  );
+}

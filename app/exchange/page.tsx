@@ -297,7 +297,6 @@ export default function HomePage() {
 
   return (
     <main className="page">
-      {/* HEADER */}
       <header className="header">
         <a href="/exchange" className="brand">
           <div className="brand-mark">C</div>
@@ -315,7 +314,6 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* HERO */}
       <section className="hero">
         <div>
           <div className="eyebrow">
@@ -348,7 +346,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* STATS */}
       <section className="stats">
         <div className="stat-card">
           <span>Trading Pairs</span>
@@ -373,7 +370,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* MARKETS */}
       <section className="markets-section">
         <div className="section-header">
           <div>
@@ -396,7 +392,6 @@ export default function HomePage() {
                 className="coin-row"
                 key={coin.id}
               >
-                {/* COIN */}
                 <div className="coin-info">
                   <img
                     src={`https://assets.coincap.io/assets/icons/${coin.symbol.toLowerCase()}@2x.png`}
@@ -432,7 +427,6 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* PRICE */}
                 <div className="coin-price">
                   <span>
                     ${formatPrice(
@@ -441,7 +435,6 @@ export default function HomePage() {
                   </span>
                 </div>
 
-                {/* CHANGE */}
                 <div
                   className={`coin-change ${
                     positive
@@ -456,14 +449,12 @@ export default function HomePage() {
                   %
                 </div>
 
-                {/* MARKET CAP */}
                 <div className="coin-market-cap">
                   {formatMarketCap(
                     coin.market_cap
                   )}
                 </div>
 
-                {/* TRADE */}
                 <a
                   href={`/trade?symbol=${coin.symbol.toUpperCase()}`}
                   className="trade-button"
@@ -478,7 +469,6 @@ export default function HomePage() {
 
       <div className="bottom-space"></div>
 
-      {/* BOTTOM NAVIGATION */}
       <nav className="bottom-nav">
         <a
           className="nav-item active"
@@ -527,21 +517,22 @@ export default function HomePage() {
         }
 
         .page {
+          width: 100%;
           min-height: 100vh;
+          min-height: 100dvh;
           background: #05080d;
           color: #ffffff;
           font-family: Arial, Helvetica, sans-serif;
           padding-bottom: 100px;
         }
 
-        /* HEADER */
-
         .header {
+          width: 100%;
           height: 76px;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0 48px;
+          padding: 0 40px;
           background: #05080d;
         }
 
@@ -603,12 +594,9 @@ export default function HomePage() {
           background: #48e7b7;
         }
 
-        /* HERO */
-
         .hero {
-          max-width: 1180px;
-          margin: 0 auto;
-          padding: 70px 24px 35px;
+          width: 100%;
+          padding: 70px 40px 35px;
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
@@ -673,12 +661,9 @@ export default function HomePage() {
           box-shadow: 0 0 10px currentColor;
         }
 
-        /* STATS */
-
         .stats {
-          max-width: 1180px;
-          margin: 0 auto;
-          padding: 0 24px 30px;
+          width: 100%;
+          padding: 0 40px 30px;
           display: grid;
           grid-template-columns: repeat(4, 1fr);
           gap: 14px;
@@ -706,12 +691,9 @@ export default function HomePage() {
           color: #2bdca7;
         }
 
-        /* MARKETS */
-
         .markets-section {
-          max-width: 1180px;
-          margin: 0 auto;
-          padding: 0 24px;
+          width: 100%;
+          padding: 0 40px;
         }
 
         .section-header {
@@ -740,8 +722,6 @@ export default function HomePage() {
           font-weight: 700;
         }
 
-        /* COIN LIST */
-
         .market-list {
           display: flex;
           flex-direction: column;
@@ -749,6 +729,7 @@ export default function HomePage() {
         }
 
         .coin-row {
+          width: 100%;
           min-height: 72px;
           padding: 12px 18px;
           background: #0b1117;
@@ -770,8 +751,6 @@ export default function HomePage() {
           background: #0e151d;
           transform: translateY(-1px);
         }
-
-        /* COIN INFO */
 
         .coin-info {
           display: flex;
@@ -845,8 +824,6 @@ export default function HomePage() {
           font-size: 14px;
         }
 
-        /* TRADE */
-
         .trade-button {
           display: inline-flex;
           align-items: center;
@@ -870,8 +847,6 @@ export default function HomePage() {
         .bottom-space {
           height: 25px;
         }
-
-        /* BOTTOM NAV */
 
         .bottom-nav {
           position: fixed;
@@ -916,8 +891,6 @@ export default function HomePage() {
           background: #10231e;
         }
 
-        /* TABLET */
-
         @media (max-width: 900px) {
           .coin-row {
             grid-template-columns:
@@ -939,6 +912,8 @@ export default function HomePage() {
 
           .hero {
             padding-top: 48px;
+            padding-left: 20px;
+            padding-right: 20px;
             flex-direction: column;
             align-items: flex-start;
           }
@@ -952,6 +927,8 @@ export default function HomePage() {
           }
 
           .stats {
+            padding-left: 20px;
+            padding-right: 20px;
             grid-template-columns: repeat(2, 1fr);
           }
 
@@ -963,9 +940,12 @@ export default function HomePage() {
               70px;
             gap: 10px;
           }
-        }
 
-        /* MOBILE */
+          .markets-section {
+            padding-left: 20px;
+            padding-right: 20px;
+          }
+        }
 
         @media (max-width: 600px) {
           .header {

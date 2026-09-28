@@ -134,7 +134,7 @@ function formatMarketCap(value: number) {
   return "$" + value.toLocaleString("en-US");
 }
 
-export default function Home() {
+export default function ExchangePage() {
   const router = useRouter();
 
   const [coins, setCoins] = useState<Coin[]>([]);
@@ -157,7 +157,7 @@ export default function Home() {
           throw new Error("CoinGecko request failed");
         }
 
-        const data = await response.json();
+        const data: Coin[] = await response.json();
 
         if (!cancelled) {
           setCoins(data);
@@ -768,11 +768,11 @@ export default function Home() {
           <section className="hero">
             <div>
               <h1>
-                Crypto<span> Markets</span>
+                Crypto<span> Exchange</span>
               </h1>
 
               <p>
-                Real-time cryptocurrency market overview
+                Trade cryptocurrencies on CryptoLab
               </p>
             </div>
 
@@ -786,11 +786,11 @@ export default function Home() {
           <section className="stats">
             <div className="stat">
               <div className="stat-label">
-                Tracked Assets
+                Trading Pairs
               </div>
 
               <div className="stat-value">
-                10
+                {coins.length || 10}
               </div>
             </div>
 
@@ -827,8 +827,8 @@ export default function Home() {
 
           <section>
             <div className="section-title">
-              <h2>Top cryptocurrencies</h2>
-              <span>By market cap</span>
+              <h2>Markets</h2>
+              <span>Trade available assets</span>
             </div>
 
             <div className="market">
@@ -894,9 +894,7 @@ export default function Home() {
                         }`}
                       >
                         {positive ? "+" : ""}
-                        {coin.price_change_percentage_24h?.toFixed(
-                          2
-                        )}
+                        {coin.price_change_percentage_24h?.toFixed(2)}
                         %
                       </div>
 
@@ -925,51 +923,46 @@ export default function Home() {
         </div>
 
         <nav className="bottom-nav">
-  <button
-    className="nav-item active"
-    onClick={() => router.push("/")}
-  >
-    <Icon type="home" />
-    <span className="nav-label">Home</span>
-  </button>
+          <button
+            className="nav-item"
+            onClick={() => router.push("/")}
+          >
+            <Icon type="home" />
+            <span className="nav-label">Home</span>
+          </button>
 
-  <button
-    className="nav-item"
-    onClick={() => {
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
-    }}
-  >
-    <Icon type="markets" />
-    <span className="nav-label">Markets</span>
-  </button>
+          <button
+            className="nav-item"
+            onClick={() => router.push("/")}
+          >
+            <Icon type="markets" />
+            <span className="nav-label">Markets</span>
+          </button>
 
-  <button
-    className="nav-item"
-    onClick={() => router.push("/exchange")}
-  >
-    <Icon type="trade" />
-    <span className="nav-label">Trade</span>
-  </button>
+          <button
+            className="nav-item active"
+            onClick={() => router.push("/exchange")}
+          >
+            <Icon type="trade" />
+            <span className="nav-label">Trade</span>
+          </button>
 
-  <button
-    className="nav-item"
-    onClick={() => router.push("/futures")}
-  >
-    <Icon type="futures" />
-    <span className="nav-label">Futures</span>
-  </button>
+          <button
+            className="nav-item"
+            onClick={() => router.push("/futures")}
+          >
+            <Icon type="futures" />
+            <span className="nav-label">Futures</span>
+          </button>
 
-  <button
-    className="nav-item"
-    onClick={() => router.push("/assets")}
-  >
-    <Icon type="assets" />
-    <span className="nav-label">Assets</span>
-  </button>
-</nav>
+          <button
+            className="nav-item"
+            onClick={() => router.push("/assets")}
+          >
+            <Icon type="assets" />
+            <span className="nav-label">Assets</span>
+          </button>
+        </nav>
       </main>
     </>
   );

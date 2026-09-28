@@ -511,15 +511,15 @@ export default function HomePage() {
         </a>
       </nav>
 
-     <style jsx global>{`
+    <style jsx global>{`
   html,
   body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    min-width: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    min-width: 100% !important;
     min-height: 100%;
-    background: #05080d;
+    background: #05080d !important;
   }
 
   body {
@@ -532,21 +532,27 @@ export default function HomePage() {
 
   .page {
     position: relative;
-    width: 100vw;
-    max-width: none;
-    min-width: 100vw;
+    width: 100vw !important;
+    max-width: none !important;
+    min-width: 100vw !important;
     min-height: 100vh;
     min-height: 100dvh;
+    margin: 0 !important;
+    padding: 0 0 100px 0;
     background: #05080d;
     color: #ffffff;
     font-family: Arial, Helvetica, sans-serif;
-    padding: 0 0 100px 0;
-    margin: 0;
+  }
+
+  .header,
+  .hero,
+  .stats,
+  .markets-section {
+    width: 100% !important;
+    max-width: none !important;
   }
 
   .header {
-    width: 100vw;
-    max-width: none;
     height: 76px;
     display: flex;
     align-items: center;
@@ -560,11 +566,10 @@ export default function HomePage() {
     display: flex;
     align-items: center;
     gap: 11px;
-    font-size: 21px;
-    font-weight: 800;
-    letter-spacing: -0.5px;
     color: white;
     text-decoration: none;
+    font-size: 21px;
+    font-weight: 800;
   }
 
   .brand-mark {
@@ -593,16 +598,11 @@ export default function HomePage() {
     font-weight: 700;
     padding: 10px 17px;
     border-radius: 9px;
-    transition: 0.2s ease;
   }
 
   .login-button {
-    color: #ffffff;
+    color: white;
     background: #0b1117;
-  }
-
-  .login-button:hover {
-    background: #101821;
   }
 
   .signup-button {
@@ -610,13 +610,7 @@ export default function HomePage() {
     background: #2bdca7;
   }
 
-  .signup-button:hover {
-    background: #48e7b7;
-  }
-
   .hero {
-    width: 100vw;
-    max-width: none;
     margin: 0;
     padding: 70px 40px 35px;
     display: flex;
@@ -637,7 +631,6 @@ export default function HomePage() {
     margin: 0;
     font-size: clamp(38px, 5vw, 58px);
     line-height: 1;
-    letter-spacing: -2.5px;
   }
 
   .hero p {
@@ -649,7 +642,6 @@ export default function HomePage() {
   .market-status {
     min-width: 190px;
     text-align: right;
-    padding-bottom: 5px;
   }
 
   .status-label {
@@ -680,12 +672,9 @@ export default function HomePage() {
     height: 7px;
     border-radius: 50%;
     background: currentColor;
-    box-shadow: 0 0 10px currentColor;
   }
 
   .stats {
-    width: 100vw;
-    max-width: none;
     margin: 0;
     padding: 0 40px 30px;
     display: grid;
@@ -694,7 +683,6 @@ export default function HomePage() {
   }
 
   .stat-card {
-    width: 100%;
     background: #0b1117;
     border-radius: 13px;
     padding: 20px;
@@ -709,16 +697,13 @@ export default function HomePage() {
 
   .stat-card strong {
     font-size: 20px;
-    color: #ffffff;
   }
 
-  .stat-card .online {
+  .online {
     color: #2bdca7;
   }
 
   .markets-section {
-    width: 100vw;
-    max-width: none;
     margin: 0;
     padding: 0 40px;
   }
@@ -733,7 +718,6 @@ export default function HomePage() {
   .section-header h2 {
     margin: 0;
     font-size: 26px;
-    letter-spacing: -0.8px;
   }
 
   .section-header p {
@@ -771,14 +755,6 @@ export default function HomePage() {
       78px;
     align-items: center;
     gap: 18px;
-    transition:
-      background 0.2s ease,
-      transform 0.2s ease;
-  }
-
-  .coin-row:hover {
-    background: #0e151d;
-    transform: translateY(-1px);
   }
 
   .coin-info {
@@ -804,10 +780,8 @@ export default function HomePage() {
     align-items: center;
     justify-content: center;
     background: #18212b;
-    color: #ffffff;
-    font-size: 16px;
+    color: white;
     font-weight: 800;
-    flex-shrink: 0;
   }
 
   .coin-name {
@@ -824,19 +798,14 @@ export default function HomePage() {
     display: block;
     color: #6f7a87;
     font-size: 12px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .coin-price {
     font-weight: 700;
-    white-space: nowrap;
   }
 
   .coin-change {
     font-weight: 700;
-    white-space: nowrap;
   }
 
   .positive {
@@ -849,7 +818,6 @@ export default function HomePage() {
 
   .coin-market-cap {
     color: #aeb7c2;
-    white-space: nowrap;
     font-size: 14px;
   }
 
@@ -857,7 +825,6 @@ export default function HomePage() {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 72px;
     padding: 8px 13px;
     border-radius: 8px;
     color: #2bdca7;
@@ -865,12 +832,6 @@ export default function HomePage() {
     text-decoration: none;
     font-size: 12px;
     font-weight: 800;
-    transition: 0.2s ease;
-  }
-
-  .trade-button:hover {
-    background: #123029;
-    color: #48e7b7;
   }
 
   .bottom-space {
@@ -891,8 +852,6 @@ export default function HomePage() {
     grid-template-columns: repeat(5, 1fr);
     align-items: center;
     padding: 5px;
-    backdrop-filter: blur(14px);
-    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
   }
 
   .nav-item {
@@ -907,31 +866,11 @@ export default function HomePage() {
     font-size: 10px;
     font-weight: 700;
     border-radius: 12px;
-    transition: 0.2s ease;
-  }
-
-  .nav-item:hover {
-    color: #ffffff;
-    background: #111a23;
   }
 
   .nav-item.active {
     color: #2bdca7;
     background: #10231e;
-  }
-
-  @media (max-width: 900px) {
-    .coin-row {
-      grid-template-columns:
-        minmax(190px, 2fr)
-        minmax(120px, 1fr)
-        minmax(90px, 0.8fr)
-        75px;
-    }
-
-    .coin-market-cap {
-      display: none;
-    }
   }
 
   @media (max-width: 800px) {
@@ -940,9 +879,7 @@ export default function HomePage() {
     }
 
     .hero {
-      padding-top: 48px;
-      padding-left: 20px;
-      padding-right: 20px;
+      padding: 48px 20px 30px;
       flex-direction: column;
       align-items: flex-start;
     }
@@ -965,35 +902,11 @@ export default function HomePage() {
       padding-left: 20px;
       padding-right: 20px;
     }
-
-    .coin-row {
-      grid-template-columns:
-        minmax(170px, 1.5fr)
-        minmax(110px, 1fr)
-        minmax(80px, 0.7fr)
-        70px;
-      gap: 10px;
-    }
   }
 
   @media (max-width: 600px) {
     .header {
       height: 68px;
-    }
-
-    .brand {
-      font-size: 18px;
-    }
-
-    .brand-mark {
-      width: 31px;
-      height: 31px;
-    }
-
-    .login-button,
-    .signup-button {
-      padding: 8px 11px;
-      font-size: 12px;
     }
 
     .hero {
@@ -1004,93 +917,23 @@ export default function HomePage() {
       font-size: 40px;
     }
 
-    .hero p {
-      font-size: 15px;
-    }
-
     .stats {
       padding-left: 18px;
       padding-right: 18px;
     }
 
-    .stat-card {
-      padding: 15px;
-    }
-
-    .stat-card strong {
-      font-size: 16px;
-    }
-
     .markets-section {
-      padding: 0 18px;
-    }
-
-    .section-header h2 {
-      font-size: 23px;
+      padding-left: 18px;
+      padding-right: 18px;
     }
 
     .coin-row {
-      min-height: 68px;
-      padding: 10px 12px;
       grid-template-columns:
         minmax(125px, 1.5fr)
         minmax(85px, 1fr)
         minmax(65px, 0.7fr)
         58px;
       gap: 8px;
-    }
-
-    .coin-logo,
-    .coin-fallback {
-      width: 34px;
-      height: 34px;
-    }
-
-    .coin-info {
-      gap: 9px;
-    }
-
-    .coin-name strong {
-      font-size: 13px;
-    }
-
-    .coin-name span {
-      font-size: 10px;
-    }
-
-    .coin-price {
-      font-size: 12px;
-    }
-
-    .coin-change {
-      font-size: 11px;
-    }
-
-    .trade-button {
-      min-width: 58px;
-      padding: 7px 8px;
-      font-size: 10px;
-    }
-
-    .bottom-nav {
-      bottom: 10px;
-    }
-  }
-
-  @media (max-width: 420px) {
-    .coin-row {
-      grid-template-columns:
-        minmax(115px, 1.4fr)
-        minmax(78px, 1fr)
-        55px;
-    }
-
-    .coin-change {
-      display: none;
-    }
-
-    .trade-button {
-      min-width: 55px;
     }
   }
 `}</style>
